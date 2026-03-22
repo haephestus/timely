@@ -1,0 +1,81 @@
+CREATE TABLE chunks (
+    id INT PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('periodic', 'daily')),
+    isActive INT NOT NULL DEFAULT 1,
+
+    startHour INT,
+    endHour INT,
+    duration INT,
+
+    CHECK(
+      (type = 'daily' AND startHour IS NOT NULL AND endHour IS NOT NULL AND duration IS NULL)
+      OR
+      (type = 'periodic' AND duration IS NOT NULL AND startHour IS NULL AND endHour IS NULL)
+    )
+  ) AS Chunk;
+
+CREATE TABLE activities (
+  id INT PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+
+  type TEXT NOT NULL CHECK (
+    type IN ('repeatable', 'one_off', 'range')
+  ),
+
+  -- used by repeatable + one_off
+  date TEXT,
+
+  -- used by range
+  startDate TEXT,
+  endDate TEXT,
+
+  completed INT NOT NULL DEFAULT 0,
+
+  chunkId INT NOT NULL
+    REFERENCES chunks(id)
+    ON DELETE CASCADE,
+
+  CHECK (
+    -- repeatable: only date
+    (type = 'repeatable'
+      AND date IS NOT NULL
+      AND startDate IS NULL
+      AND endDate IS NULL)
+
+    OR
+
+    -- one-off: single date
+    (type = 'one_off'
+      AND date IS NOT NULL
+      AND startDate IS NULL
+      AND endDate IS NULL)
+
+    OR
+
+    -- range: start + end
+    (type = 'range'
+      AND date IS NULL
+      AND startDate IS NOT NULL
+      AND endDate IS NOT NULL
+      AND startDate <= endDate)
+  )
+) AS Activity;
+
+-- Create
+
+
+-- Read
+getAllChunks: SELECT * FROM chunks;
+getActiveChunks: SELECT * FROM chunks WHERE isActive = 1;
+getChunkInfoByChunkName: SELECT * FROM chunks WHERE name = ?;
+getActivitiesByChunkId: SELECT * FROM activities WHERE chunkId = ?;
+
+
+-- Update
+
+
+-- Delete
+
+
