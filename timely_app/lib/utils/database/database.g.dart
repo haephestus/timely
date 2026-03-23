@@ -159,18 +159,21 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       ),
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      type: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}type'],
-      )!,
-      isActive: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}isActive'],
-      )!,
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      type:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}type'],
+          )!,
+      isActive:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}isActive'],
+          )!,
       startHour: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}startHour'],
@@ -243,15 +246,18 @@ class Chunk extends DataClass implements Insertable<Chunk> {
       name: Value(name),
       type: Value(type),
       isActive: Value(isActive),
-      startHour: startHour == null && nullToAbsent
-          ? const Value.absent()
-          : Value(startHour),
-      endHour: endHour == null && nullToAbsent
-          ? const Value.absent()
-          : Value(endHour),
-      duration: duration == null && nullToAbsent
-          ? const Value.absent()
-          : Value(duration),
+      startHour:
+          startHour == null && nullToAbsent
+              ? const Value.absent()
+              : Value(startHour),
+      endHour:
+          endHour == null && nullToAbsent
+              ? const Value.absent()
+              : Value(endHour),
+      duration:
+          duration == null && nullToAbsent
+              ? const Value.absent()
+              : Value(duration),
     );
   }
 
@@ -650,18 +656,21 @@ class Activities extends Table with TableInfo<Activities, Activity> {
         DriftSqlType.int,
         data['${effectivePrefix}id'],
       ),
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      description: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}description'],
-      )!,
-      type: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}type'],
-      )!,
+      name:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}name'],
+          )!,
+      description:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}description'],
+          )!,
+      type:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}type'],
+          )!,
       date: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}date'],
@@ -674,14 +683,16 @@ class Activities extends Table with TableInfo<Activities, Activity> {
         DriftSqlType.string,
         data['${effectivePrefix}endDate'],
       ),
-      completed: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}completed'],
-      )!,
-      chunkId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}chunkId'],
-      )!,
+      completed:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}completed'],
+          )!,
+      chunkId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}chunkId'],
+          )!,
     );
   }
 
@@ -753,12 +764,14 @@ class Activity extends DataClass implements Insertable<Activity> {
       description: Value(description),
       type: Value(type),
       date: date == null && nullToAbsent ? const Value.absent() : Value(date),
-      startDate: startDate == null && nullToAbsent
-          ? const Value.absent()
-          : Value(startDate),
-      endDate: endDate == null && nullToAbsent
-          ? const Value.absent()
-          : Value(endDate),
+      startDate:
+          startDate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(startDate),
+      endDate:
+          endDate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(endDate),
       completed: Value(completed),
       chunkId: Value(chunkId),
     );
@@ -822,9 +835,8 @@ class Activity extends DataClass implements Insertable<Activity> {
     return Activity(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
-      description: data.description.present
-          ? data.description.value
-          : this.description,
+      description:
+          data.description.present ? data.description.value : this.description,
       type: data.type.present ? data.type.value : this.type,
       date: data.date.present ? data.date.value : this.date,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
@@ -1296,12 +1308,12 @@ class $ChunksTableManager
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () =>
-              $ChunksFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $ChunksOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $ChunksAnnotationComposer($db: db, $table: table),
+          createFilteringComposer:
+              () => $ChunksFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $ChunksOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $ChunksAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int?> id = const Value.absent(),
@@ -1338,9 +1350,16 @@ class $ChunksTableManager
                 endHour: endHour,
                 duration: duration,
               ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), $ChunksReferences(db, table, e)))
-              .toList(),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          $ChunksReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
           prefetchHooksCallback: ({activitiesRefs = false}) {
             return PrefetchHooks(
               db: db,
@@ -1354,10 +1373,13 @@ class $ChunksTableManager
                       referencedTable: $ChunksReferences._activitiesRefsTable(
                         db,
                       ),
-                      managerFromTypedResult: (p0) =>
-                          $ChunksReferences(db, table, p0).activitiesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.chunkId == item.id),
+                      managerFromTypedResult:
+                          (p0) =>
+                              $ChunksReferences(db, table, p0).activitiesRefs,
+                      referencedItemsForCurrentItem:
+                          (item, referencedItems) => referencedItems.where(
+                            (e) => e.chunkId == item.id,
+                          ),
                       typedResults: items,
                     ),
                 ];
@@ -1652,12 +1674,12 @@ class $ActivitiesTableManager
         TableManagerState(
           db: db,
           table: table,
-          createFilteringComposer: () =>
-              $ActivitiesFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $ActivitiesOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $ActivitiesAnnotationComposer($db: db, $table: table),
+          createFilteringComposer:
+              () => $ActivitiesFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $ActivitiesOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $ActivitiesAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
                 Value<int?> id = const Value.absent(),
@@ -1702,48 +1724,50 @@ class $ActivitiesTableManager
                 completed: completed,
                 chunkId: chunkId,
               ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) =>
-                    (e.readTable(table), $ActivitiesReferences(db, table, e)),
-              )
-              .toList(),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          $ActivitiesReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
           prefetchHooksCallback: ({chunkId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (chunkId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.chunkId,
-                                referencedTable: $ActivitiesReferences
-                                    ._chunkIdTable(db),
-                                referencedColumn: $ActivitiesReferences
-                                    ._chunkIdTable(db)
-                                    .id,
-                              )
-                              as T;
-                    }
+              addJoins: <
+                T extends TableManagerState<
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic,
+                  dynamic
+                >
+              >(state) {
+                if (chunkId) {
+                  state =
+                      state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.chunkId,
+                            referencedTable: $ActivitiesReferences
+                                ._chunkIdTable(db),
+                            referencedColumn:
+                                $ActivitiesReferences._chunkIdTable(db).id,
+                          )
+                          as T;
+                }
 
-                    return state;
-                  },
+                return state;
+              },
               getPrefetchedDataCallback: (items) async {
                 return [];
               },

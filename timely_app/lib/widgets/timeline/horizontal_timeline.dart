@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:timely_app/models/chunk.dart';
-import 'package:timely_app/screens/chunk_manager.dart';
 import 'package:timely_app/widgets/timeline/hour_rail.dart';
 import 'package:timely_app/widgets/timeline/chunk_overlays.dart';
 import 'package:timely_app/widgets/timeline/now_indicator.dart';
@@ -10,13 +9,17 @@ import 'package:timely_app/widgets/timeline/now_indicator.dart';
 class HorizontalTimeline extends StatefulWidget {
   final List<Chunk> chunks;
   final Chunk? selectedChunk;
+  final VoidCallback onLongPress;
   final ValueChanged<Chunk> onChunkSelected;
+  final ValueChanged<Chunk> onChunkLongPress;
 
   const HorizontalTimeline({
     super.key,
     required this.chunks,
     required this.selectedChunk,
+    required this.onLongPress,
     required this.onChunkSelected,
+    required this.onChunkLongPress,
   });
 
   static const double hourWidth = 120;
@@ -51,22 +54,12 @@ class _HorizontalTimelineState extends State<HorizontalTimeline> {
     );
   }
 
-  void _openChunkManager() async {
-    final result = await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ChunkManager()));
-
-    if (result == true && mounted) {
-      setState(() {});
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: HorizontalTimeline.timelineHeight,
       child: GestureDetector(
-        onLongPress: _openChunkManager,
+        onLongPress: widget.onLongPress,
         child: ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(
             scrollbars: true,
@@ -90,6 +83,7 @@ class _HorizontalTimelineState extends State<HorizontalTimeline> {
                     chunks: widget.chunks,
                     selectedChunk: widget.selectedChunk,
                     onChunkSelected: widget.onChunkSelected,
+                    onChunkLongPress: widget.onChunkLongPress,
                   ),
                   NowIndicator(hourWidth: HorizontalTimeline.hourWidth),
                 ],

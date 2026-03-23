@@ -77,5 +77,5 @@ getActivitiesByChunkId: SELECT * FROM activities WHERE chunkId = ?;
 
 
 -- Delete
-
+deleteChunk: SELECT * FROM chunks WHERE chunkId is = ?;
 

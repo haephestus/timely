@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:timely_app/models/chunk_activity.dart';
 import 'package:timely_app/models/chunk.dart';
-import 'package:timely_app/screens/add_activities.dart';
+import 'package:timely_app/screens/activity_manager.dart';
 
 class ChunkActivities extends StatelessWidget {
   final Chunk? chunk;
@@ -19,9 +19,6 @@ class ChunkActivities extends StatelessWidget {
       return const Center(child: Text('Select a chunk'));
     }
 
-    // Return activity widget, with sub steps to complete the activities
-    // possible ai integration here
-    //
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -32,7 +29,6 @@ class ChunkActivities extends StatelessWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
-
           if (activities.isEmpty) const Text('No activities planned'),
           Expanded(
             child: ListView.builder(
@@ -43,7 +39,6 @@ class ChunkActivities extends StatelessWidget {
                     leading: const Icon(Icons.add),
                     title: const Text('Add activity'),
                     onTap: () {
-                      // activity addition logic
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => AddActivities(chunk: chunk!),

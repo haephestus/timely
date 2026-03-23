@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:drift/drift.dart' hide Column;
-import 'package:timely_app/models/chunk.dart';
-import 'package:timely_app/utils/database/database.dart';
+import 'package:drift/drift.dart' as drift hide Column;
+import 'package:timely_app/models/chunk.dart' as model;
+import 'package:timely_app/utils/database/database.dart' as db;
 
 class ChunkManager extends StatefulWidget {
-  const ChunkManager({super.key});
+  final bool isEdit;
+  final model.Chunk? chunk;
+
+  const ChunkManager({super.key, required this.isEdit, this.chunk});
 
   @override
   State<ChunkManager> createState() => _ChunkManagerState();
@@ -12,9 +15,9 @@ class ChunkManager extends StatefulWidget {
 
 class _ChunkManagerState extends State<ChunkManager> {
   final _nameController = TextEditingController();
-  late final AppDb _db;
+  late final db.AppDb _db;
 
-  ChunkType _type = ChunkType.daily;
+  model.ChunkType _type = model.ChunkType.daily;
 
   TimeOfDay startTime = TimeOfDay.now();
   TimeOfDay endTime = TimeOfDay.now();
@@ -22,12 +25,21 @@ class _ChunkManagerState extends State<ChunkManager> {
   @override
   void initState() {
     super.initState();
-    _db = AppDb();
+    _db = db.AppDb();
+
+    if (widget.isEdit && widget.chunk != null) {
+      final chunk = widget.chunk!;
+      _nameController.text = chunk.name;
+      startTime = TimeOfDay(hour: chunk.startHour, minute: 0);
+      endTime = TimeOfDay(hour: chunk.endHour, minute: 0);
+      _type = chunk.type;
+    }
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _db.close();
     super.dispose();
   }
 
@@ -38,7 +50,7 @@ class _ChunkManagerState extends State<ChunkManager> {
   }
 
   Future<void> _pickTime({required bool isStart}) async {
-    final TimeOfDay? picked = await showTimePicker(
+    final picked = await showTimePicker(
       context: context,
       initialTime: isStart ? startTime : endTime,
       initialEntryMode: TimePickerEntryMode.dial,
@@ -55,32 +67,76 @@ class _ChunkManagerState extends State<ChunkManager> {
     }
   }
 
-  Future<void> _submitChunk() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) return;
+  Future<void> _deleteChunk() async {
+    if (widget.chunk?.chunkId == null) return;
 
     try {
-      await _db
-          .into(_db.chunks)
-          .insert(
-            ChunksCompanion.insert(
-              name: name,
-              type: _type.name,
-              startHour: Value(startTime.hour),
-              endHour: Value(endTime.hour),
-            ),
-          );
+      await (_db.delete(_db.chunks)
+        ..where((c) => c.id.equals(widget.chunk!.chunkId!))).go();
+
+      debugPrint("Deleting chunk with id: ${widget.chunk!.chunkId}");
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error deleting: $e")));
+    }
+  }
+
+  Future<void> _submitChunk() async {
+    final name = _nameController.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Name is required")));
+      return;
+    }
+
+    if (startTime.hour >= endTime.hour) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Start time must be before end time")),
+      );
+      return;
+    }
+
+    try {
+      //update in ChunksCompanion
+      if (widget.isEdit && widget.chunk != null) {
+        await (_db.update(_db.chunks)
+          ..where((c) => c.id.equals(widget.chunk!.chunkId!))).write(
+          db.ChunksCompanion(
+            name: drift.Value(name),
+            type: drift.Value(_type.name),
+            startHour: drift.Value(startTime.hour),
+            endHour: drift.Value(endTime.hour),
+          ),
+        );
+      } else {
+        await _db
+            .into(_db.chunks)
+            .insert(
+              db.ChunksCompanion.insert(
+                name: name,
+                type: _type.name,
+                startHour: drift.Value(startTime.hour),
+                endHour: drift.Value(endTime.hour),
+              ),
+            );
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Chunk submitted")));
+      ).showSnackBar(const SnackBar(content: Text("Chunk saved")));
 
       Navigator.of(context).pop(true);
     } catch (e, s) {
-      debugPrint("INSERT ERROR: $e");
+      debugPrint("DB ERROR: $e");
       debugPrintStack(stackTrace: s);
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));
@@ -90,7 +146,9 @@ class _ChunkManagerState extends State<ChunkManager> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Chunk Manager')),
+      appBar: AppBar(
+        title: Text(widget.isEdit ? 'Edit Chunk' : 'Create Chunk'),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -109,16 +167,12 @@ class _ChunkManagerState extends State<ChunkManager> {
                   border: OutlineInputBorder(),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               const Text(
                 "Time Range",
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
-
-              /// SIDE BY SIDE TIME PICKERS
               Row(
                 children: [
                   Expanded(
@@ -138,22 +192,19 @@ class _ChunkManagerState extends State<ChunkManager> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 24),
-
               const Text(
                 "Repeat",
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
-
               Wrap(
                 spacing: 12,
                 children:
-                    ChunkType.values.map((type) {
+                    model.ChunkType.values.map((type) {
                       return ChoiceChip(
                         label: Text(
-                          type == ChunkType.daily ? 'Daily' : 'Sporadic',
+                          type == model.ChunkType.daily ? 'Daily' : 'Sporadic',
                         ),
                         selected: _type == type,
                         onSelected: (selected) {
@@ -164,15 +215,27 @@ class _ChunkManagerState extends State<ChunkManager> {
                       );
                     }).toList(),
               ),
-
               const Spacer(),
-
               Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
-                  onPressed: _submitChunk,
-                  icon: const Icon(Icons.send),
-                  label: const Text("Save Chunk"),
+                alignment: Alignment.center,
+                child: Wrap(
+                  spacing: 12,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _submitChunk,
+                      icon: const Icon(Icons.save),
+                      label: Text(
+                        widget.isEdit ? "Update Chunk" : "Save Chunk",
+                      ),
+                    ),
+
+                    if (widget.isEdit)
+                      ElevatedButton.icon(
+                        onPressed: _deleteChunk,
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        label: const Text("Delete Chunk"),
+                      ),
+                  ],
                 ),
               ),
             ],

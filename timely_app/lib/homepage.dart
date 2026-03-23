@@ -87,11 +87,11 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /// load chunk manager
+  /// adds chunks in this case
   void _openChunkManager() async {
-    final result = await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ChunkManager()));
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ChunkManager(isEdit: false)),
+    );
 
     if (result == true) {
       await _loadChunks();
@@ -112,17 +112,22 @@ class _HomePageState extends State<HomePage> {
           /// WEEK CALENDAR (day selector)
           Listener(
             onPointerSignal: (pointerSignal) {
-              if (pointerSignal is PointerScrollEvent) {
-                if (pointerSignal.scrollDelta.dy > 0) {
-                  // Scroll down → next week
-                  _focusedDay = _focusedDay.add(const Duration(days: 7));
-                } else {
-                  // Scroll up → previous week
-                  _focusedDay = _focusedDay.subtract(const Duration(days: 7));
+              setState(() {
+                if (pointerSignal is PointerScrollEvent) {
+                  if (pointerSignal.scrollDelta.dy > 0) {
+                    // Scroll down → next week
+                    final next = _focusedDay.add(const Duration(days: 7));
+                    _focusedDay = next.isAfter(kLastDay) ? kLastDay : next;
+                  } else {
+                    final previous = _focusedDay.subtract(
+                      const Duration(days: 7),
+                    );
+                    // Scroll up → previous week
+                    _focusedDay =
+                        previous.isBefore(kFirstDay) ? kFirstDay : previous;
+                  }
                 }
-
-                setState(() {});
-              }
+              });
             },
             child: TableCalendar(
               availableCalendarFormats: const {CalendarFormat.week: 'Week'},
@@ -165,6 +170,17 @@ class _HomePageState extends State<HomePage> {
                     _selectedChunk = chunk;
                   });
                   await _loadChunkActivities(chunk.chunkId!);
+                },
+                onLongPress: _openChunkManager,
+                onChunkLongPress: (chunk) async {
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ChunkManager(isEdit: true, chunk: chunk),
+                    ),
+                  );
+                  if (result == true && mounted) {
+                    await _loadChunks();
+                  }
                 },
               ),
 
