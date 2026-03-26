@@ -9,14 +9,19 @@ part 'database.g.dart';
 
 @DriftDatabase(include: {'tables.drift'})
 class AppDb extends _$AppDb {
-  AppDb() : super(_openConnection());
+  static AppDb? _instance;
+  factory AppDb() {
+    _instance ??= AppDb._internal();
+    return _instance!;
+  }
+  AppDb._internal() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (migrator, from, to) async {
-      if (from == 1) {
+      if (from == 2) {
         await customStatement("DROP TABLE IF EXISTS chunks");
         await migrator.createTable(chunks);
       }

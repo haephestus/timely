@@ -3,14 +3,18 @@ import 'package:timely_app/models/chunk_activity.dart';
 import 'package:timely_app/models/chunk.dart';
 import 'package:timely_app/screens/activity_manager.dart';
 
-class ChunkActivities extends StatelessWidget {
+class ActivityWidget extends StatelessWidget {
   final Chunk? chunk;
   final List<ChunkActivity> activities;
+  final ChunkActivity? selectedActivity;
+  final VoidCallback? onActivityChanged;
 
-  const ChunkActivities({
+  const ActivityWidget({
     super.key,
     required this.chunk,
     required this.activities,
+    this.selectedActivity,
+    required this.onActivityChanged,
   });
 
   @override
@@ -25,7 +29,7 @@ class ChunkActivities extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${chunk!.name} Activities',
+            'Activities for ${chunk!.name}',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
@@ -38,19 +42,30 @@ class ChunkActivities extends StatelessWidget {
                   return ListTile(
                     leading: const Icon(Icons.add),
                     title: const Text('Add activity'),
-                    onTap: () {
-                      Navigator.of(context).push(
+                    //WARN: ADD activity
+                    onTap: () async {
+                      final result = await Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => AddActivities(chunk: chunk!),
+                          builder:
+                              (_) =>
+                                  ActivityManager(chunk: chunk!, isEdit: false),
                         ),
                       );
+                      if (result == true) {
+                        onActivityChanged?.call();
+                      }
                     },
                   );
                 }
                 final activity = activities[index - 1];
+                // WARN: builds list of activities
+                // show ranged activities -> show activity if date in range
+                // show everyday activities -> straight forward
+                // show periodic activities -> show activity based on date or day
                 return CheckboxListTile(
                   title: Text(activity.name),
                   subtitle: Text(activity.description),
+                  secondary: Text(activity.type.name),
                   value: activity.completed,
                   onChanged: (_) {},
                 );

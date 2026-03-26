@@ -8,7 +8,7 @@ import 'package:timely_app/screens/chunk_manager.dart';
 import 'package:timely_app/utils/database/database.dart' as db;
 
 import 'package:timely_app/widgets/timeline/horizontal_timeline.dart';
-import 'package:timely_app/widgets/activities/activities.dart';
+import 'package:timely_app/widgets/activities/activities_widget.dart';
 
 import 'package:timely_app/utils/database/services.dart' as service;
 import 'package:timely_app/utils/calendar_utils.dart';
@@ -188,9 +188,13 @@ class _HomePageState extends State<HomePage> {
 
           /// ACTIVITIES FOR CHUNK
           Expanded(
-            child: ChunkActivities(
+            child: ActivityWidget(
               chunk: _selectedChunk,
               activities: _activities,
+              onActivityChanged:
+                  _selectedChunk != null
+                      ? () => _loadChunkActivities(_selectedChunk!.chunkId!)
+                      : null,
             ),
           ),
         ],

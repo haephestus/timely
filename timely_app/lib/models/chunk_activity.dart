@@ -1,8 +1,9 @@
 /// Defines how an activity behaves over time.
-enum ActivityType { repeatable, oneOff, range }
+enum ActivityType { everyday, periodic, range }
 
 /// Base sealed class for all chunk activities.
 sealed class ChunkActivity {
+  final int? id;
   final String name;
   final ActivityType type;
   final String description;
@@ -10,6 +11,7 @@ sealed class ChunkActivity {
   final bool completed;
 
   ChunkActivity({
+    this.id,
     required this.name,
     required this.type,
     required this.description,
@@ -17,29 +19,30 @@ sealed class ChunkActivity {
   });
 }
 
-/// A repeatable activity (e.g. daily habit).
+/// A everyday activity (e.g. daily habit).
 /// Uses a single date representing the specific day instance.
-final class RepeatableActivity extends ChunkActivity {
-  final DateTime date;
+/// TODO: add ability to select specific days the activity should be everyday
+final class EverydayActivity extends ChunkActivity {
+  final DateTime? date;
 
-  RepeatableActivity({
-    required this.date,
+  EverydayActivity({
+    this.date,
     required super.name,
     super.completed = false,
     required super.description,
-  }) : super(type: ActivityType.repeatable);
+  }) : super(type: ActivityType.everyday);
 }
 
-/// A one-off activity that happens on a single day.
-final class OneOffActivity extends ChunkActivity {
+/// A periodic activity that happens on a single day.
+final class PeriodicActivity extends ChunkActivity {
   final DateTime date;
 
-  OneOffActivity({
+  PeriodicActivity({
     required this.date,
     required super.name,
     super.completed = false,
     required super.description,
-  }) : super(type: ActivityType.repeatable);
+  }) : super(type: ActivityType.periodic);
 }
 
 /// A range-based activity that spans multiple days.

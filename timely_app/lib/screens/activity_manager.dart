@@ -1,22 +1,125 @@
 import 'package:flutter/material.dart';
 import 'package:timely_app/models/chunk_activity.dart';
 import 'package:timely_app/models/chunk.dart' as model;
+import 'package:timely_app/utils/calendar_utils.dart' as cal;
 import 'package:timely_app/utils/database/database.dart';
+import 'package:timely_app/utils/database/services.dart';
 
-class AddActivities extends StatefulWidget {
-  final model.Chunk chunk;
-  const AddActivities({super.key, required this.chunk});
+/// should be able to add, delete, edit activities
+/// pass a single activity to this screen to manage
+class ActivityManager extends StatefulWidget {
+  final model.Chunk? chunk;
+  final bool isEdit;
+  final ChunkActivity? activity;
+  const ActivityManager({
+    super.key,
+    required this.chunk,
+    required this.isEdit,
+    this.activity,
+  });
 
   @override
-  State<AddActivities> createState() => _AddActivitiesState();
+  State<ActivityManager> createState() => _ActivityManagerState();
 }
 
-class _AddActivitiesState extends State<AddActivities> {
+class _ActivityManagerState extends State<ActivityManager> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  ActivityType _type = ActivityType.repeatable;
+  late final ChunkActivityService _activityService;
+  DateTime? selectedDate;
+  DateTimeRange? selectedRangeDate;
+  DateTime? startDate;
+  DateTime? endDate;
+  ChunkActivity? _activity;
+  ActivityType _type = ActivityType.everyday;
   late final AppDb _db;
+
+  @override
+  void initState() {
+    super.initState();
+    _db = AppDb();
+    _activityService = ChunkActivityService(_db);
+
+    if (widget.isEdit && widget.activity != null) {
+      //load the activity data into the widget
+      _activity = switch (widget.activity!) {
+        RangeActivity a => RangeActivity(
+          name: a.name,
+          startDate: a.startDate,
+          endDate: a.endDate,
+          description: a.description,
+        ),
+        PeriodicActivity a => PeriodicActivity(
+          date: a.date,
+          name: a.name,
+          description: a.description,
+        ),
+        EverydayActivity a => EverydayActivity(
+          date: a.date,
+          name: a.name,
+          description: a.description,
+        ),
+      };
+    } else if (_type == ActivityType.everyday) {
+      final now = DateTime.now();
+      _activity = EverydayActivity(date: now, name: "", description: "");
+      selectedDate = now;
+    }
+  }
+
+  Future<void> _rangeDatePicker(ActivityType type) async {
+    DateTimeRange? rangeDate = await showDateRangePicker(
+      context: context,
+      firstDate: cal.kFirstDay,
+      lastDate: cal.kLastDay,
+      initialEntryMode: DatePickerEntryMode.calendar,
+    );
+    if (rangeDate != null) {
+      setState(() {
+        _type = type;
+        _activity = RangeActivity(
+          name: _nameController.text,
+          description: _descriptionController.text,
+          startDate: rangeDate.start,
+          endDate: rangeDate.end,
+        );
+      });
+    }
+  }
+
+  Future<void> _periodicDatePicker(ActivityType type) async {
+    DateTime? periodicDate = await showDatePicker(
+      context: context,
+      firstDate: cal.kFirstDay,
+      lastDate: cal.kLastDay,
+      initialEntryMode: DatePickerEntryMode.calendar,
+    );
+
+    if (periodicDate != null) {
+      setState(() {
+        _type = type;
+        _activity = PeriodicActivity(
+          name: _nameController.text,
+          description: _descriptionController.text,
+          date: periodicDate,
+        );
+      });
+    }
+  }
+
+  // should not be a date picker
+  // should init activity everyday in activities table
+  // can pick more than one day to repeat
+  Future<void> _everydayDatePicker(ActivityType type) async {
+    setState(() {
+      _type = type;
+    });
+    _activity = EverydayActivity(
+      name: _nameController.text,
+      description: _descriptionController.text,
+    );
+  }
 
   Future<void> _submitActivity() async {
     final name = _nameController.text.trim();
@@ -24,18 +127,79 @@ class _AddActivitiesState extends State<AddActivities> {
 
     if (name.isEmpty) return;
 
-    await _db
-        .into(_db.activities)
-        .insert(
-          ActivitiesCompanion.insert(
+    try {
+      if (widget.isEdit && widget.chunk != null && widget.activity != null) {
+        // load the selected activities information and edit
+        await switch (_activity!) {
+          RangeActivity a => _activityService.updateRangeActivity(
+            id: a.id!,
+            chunkId: widget.chunk!.chunkId!,
+            type: _type.name,
+            description: a.description,
+            name: a.name,
+            startDate: a.startDate.toString(),
+            endDate: a.endDate.toString(),
+          ),
+          PeriodicActivity a => _activityService.updatePeriodicActivity(
+            id: a.id!,
+            name: _activity!.name,
+            type: _type.name,
+            date: a.date.toString(),
+            description: a.description,
+            chunkId: widget.chunk!.chunkId!,
+          ),
+          EverydayActivity a => _activityService.updateEverydayActivity(
+            id: a.id!,
+            type: _type.name,
+            name: a.name,
+            date: a.date.toString(),
+            description: a.description,
+            chunkId: widget.chunk!.chunkId!,
+          ),
+        };
+      } else {
+        // create the activity, set name, description, type
+        // pass activity name
+        // pass activity description
+        // if ActivityType.periodic -> select date
+        // if ActivityType.everyday -> select day of the week
+        // if ActivityType.range -> select dates
+        await switch (_activity!) {
+          RangeActivity a => _activityService.addRangeActivity(
+            chunkId: widget.chunk!.chunkId!,
+            description: description,
+            name: name,
+            startDate: a.startDate,
+            endDate: a.endDate,
+          ),
+          PeriodicActivity a => _activityService.addPeriodicActivity(
+            name: name,
+            date: a.date,
+            description: description,
+            chunkId: widget.chunk!.chunkId!,
+          ),
+          EverydayActivity _ => _activityService.addEverydayActivity(
             name: name,
             description: description,
-            type: _type.name,
-            chunkId: widget.chunk.chunkId!,
+            chunkId: widget.chunk!.chunkId!,
           ),
-        );
-    if (!mounted) return;
-    Navigator.of(context).pop(true);
+        };
+      }
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Chunk saved")));
+
+      Navigator.of(context).pop(true);
+    } catch (e, s) {
+      debugPrint("DB ERROR: $e");
+      debugPrintStack(stackTrace: s);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
   }
 
   @override
@@ -47,13 +211,14 @@ class _AddActivitiesState extends State<AddActivities> {
 
   @override
   Widget build(BuildContext context) {
-    final model.Chunk chunk = widget.chunk;
+    final model.Chunk chunk = widget.chunk!;
     return Scaffold(
       appBar: AppBar(title: Text('Add Activity to ${chunk.name}')),
       body: Form(
         child: Padding(
           padding: EdgeInsets.all(16.0),
           child: Column(
+            spacing: 24.0,
             children: [
               Text('Enter Activity Name'),
               TextFormField(
@@ -65,35 +230,51 @@ class _AddActivitiesState extends State<AddActivities> {
                 controller: _descriptionController,
                 decoration: InputDecoration(hintText: 'Describe your activity'),
               ),
-              Text('How often do you want this activity to repeat?'),
+              Text('When to repeat?'),
               Wrap(
                 spacing: 8,
                 children:
                     ActivityType.values.map((type) {
                       return ChoiceChip(
                         label: Text(switch (type) {
-                          ActivityType.oneOff => 'Once',
-                          ActivityType.range => 'Set Dates',
-                          ActivityType.repeatable => 'Everyday',
+                          ActivityType.periodic => 'Select day(s) ',
+                          ActivityType.everyday => 'Everyday',
+                          ActivityType.range => 'Select date(s)',
                         }),
                         selected: _type == type,
                         onSelected: (selected) {
                           if (!selected) return;
                           setState(() {
-                            _type = type;
+                            switch (type) {
+                              case ActivityType.range:
+                                _rangeDatePicker(type);
+                              case ActivityType.periodic:
+                                _periodicDatePicker(type);
+                              case ActivityType.everyday:
+                                _everydayDatePicker(type);
+                            }
+
+                            /// showDatePicker for selected type
                           });
                         },
                       );
                     }).toList(),
               ),
-
               Align(
-                alignment: Alignment.centerRight,
-                child: IconButton(
-                  onPressed: () {
-                    _submitActivity();
-                  },
-                  icon: Icon(Icons.send_sharp),
+                alignment: Alignment.center,
+                child: Wrap(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _submitActivity,
+                      icon: Icon(Icons.save),
+                      label: Text("save"),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => {},
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      label: Text("delete"),
+                    ),
+                  ],
                 ),
               ),
             ],

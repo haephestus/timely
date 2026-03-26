@@ -6,12 +6,13 @@ CREATE TABLE chunks (
 
     startHour INT,
     endHour INT,
-    duration INT,
+    date TEXT,
+    day TEXT,
 
     CHECK(
-      (type = 'daily' AND startHour IS NOT NULL AND endHour IS NOT NULL AND duration IS NULL)
+      (type = 'daily' AND startHour IS NOT NULL AND endHour IS NOT NULL AND date IS NULL AND day IS NULL)
       OR
-      (type = 'periodic' AND duration IS NOT NULL AND startHour IS NULL AND endHour IS NULL)
+      (type = 'periodic' AND date IS NOT NULL AND startHour IS NOT NULL AND endHour IS NOT NULL AND day is NOT NULL)
     )
   ) AS Chunk;
 
@@ -21,10 +22,10 @@ CREATE TABLE activities (
   description TEXT NOT NULL,
 
   type TEXT NOT NULL CHECK (
-    type IN ('repeatable', 'one_off', 'range')
+    type IN ('everyday', 'periodic', 'range')
   ),
 
-  -- used by repeatable + one_off
+  -- used by everyday + periodic
   date TEXT,
 
   -- used by range
@@ -38,16 +39,16 @@ CREATE TABLE activities (
     ON DELETE CASCADE,
 
   CHECK (
-    -- repeatable: only date
-    (type = 'repeatable'
+    -- everyday: only date
+    (type = 'everyday'
       AND date IS NOT NULL
       AND startDate IS NULL
       AND endDate IS NULL)
 
     OR
 
-    -- one-off: single date
-    (type = 'one_off'
+    -- periodic: single date
+    (type = 'periodic'
       AND date IS NOT NULL
       AND startDate IS NULL
       AND endDate IS NULL)
@@ -70,12 +71,16 @@ CREATE TABLE activities (
 getAllChunks: SELECT * FROM chunks;
 getActiveChunks: SELECT * FROM chunks WHERE isActive = 1;
 getChunkInfoByChunkName: SELECT * FROM chunks WHERE name = ?;
-getActivitiesByChunkId: SELECT * FROM activities WHERE chunkId = ?;
-
+getActivitiesByChunkId: SELECT * FROM activities WHERE chunkId = ? AND (
+(type IN ('everyday', 'periodic') AND  date('now')=date(date) )
+OR
+(type = 'range' AND DATE('now') BETWEEN date(startDate) AND date(startDate))
+);
 
 -- Update
 
 
 -- Delete
-deleteChunk: SELECT * FROM chunks WHERE chunkId is = ?;
+deleteChunk: DELETE FROM chunks WHERE id = ?;
+deleteActivity: DELETE FROM activities where chunkId = ?;
 

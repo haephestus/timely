@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as drift hide Column;
 import 'package:timely_app/models/chunk.dart' as model;
 import 'package:timely_app/utils/database/database.dart' as db;
+import 'package:day_night_time_picker/day_night_time_picker.dart';
 
 class ChunkManager extends StatefulWidget {
   final bool isEdit;
@@ -39,7 +40,6 @@ class _ChunkManagerState extends State<ChunkManager> {
   @override
   void dispose() {
     _nameController.dispose();
-    _db.close();
     super.dispose();
   }
 
@@ -50,21 +50,27 @@ class _ChunkManagerState extends State<ChunkManager> {
   }
 
   Future<void> _pickTime({required bool isStart}) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: isStart ? startTime : endTime,
-      initialEntryMode: TimePickerEntryMode.dial,
+    Navigator.of(context).push(
+      showPicker(
+        context: context,
+        value:
+            isStart
+                ? Time(hour: startTime.hour, minute: startTime.minute)
+                : Time(hour: endTime.hour, minute: endTime.minute),
+        disableMinute: true,
+        onChange: (Time newTime) {
+          if (!mounted) return;
+          setState(() {
+            final tod = TimeOfDay(hour: newTime.hour, minute: newTime.minute);
+            if (isStart) {
+              startTime = tod;
+            } else {
+              endTime = tod;
+            }
+          });
+        },
+      ),
     );
-
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          startTime = picked;
-        } else {
-          endTime = picked;
-        }
-      });
-    }
   }
 
   Future<void> _deleteChunk() async {
@@ -228,7 +234,6 @@ class _ChunkManagerState extends State<ChunkManager> {
                         widget.isEdit ? "Update Chunk" : "Save Chunk",
                       ),
                     ),
-
                     if (widget.isEdit)
                       ElevatedButton.icon(
                         onPressed: _deleteChunk,

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 //import 'package:timely_app/models/chunk.dart' as model;
 import 'package:timely_app/models/chunk_activity.dart';
+import 'package:timely_app/utils/calendar_utils.dart';
 import 'package:timely_app/utils/database/database.dart' as db;
 
 class ChunkActivityService {
@@ -36,15 +37,15 @@ class ChunkActivityService {
 
     return dbActivities.map((a) {
       switch (a.type) {
-        case 'repeatable':
-          return RepeatableActivity(
+        case 'everyday':
+          return EverydayActivity(
             name: a.name,
             description: a.description,
             completed: a.completed == 1,
             date: DateTime.parse(a.date!),
           );
-        case 'one_off':
-          return OneOffActivity(
+        case 'periodic':
+          return PeriodicActivity(
             name: a.name,
             description: a.description,
             completed: a.completed == 1,
@@ -69,18 +70,69 @@ class ChunkActivityService {
    * =========================
   */
 
-  Future<int> addRepeatableActivity({
+  Future<void> addEverydayActivity({
+    required String name,
+    required int chunkId,
+    required String description,
+  }) async {
+    await database.batch((b) {
+      for (
+        var d = DateTime.now();
+        !d.isAfter(kLastDay);
+        d = d.add(const Duration(days: 1))
+      ) {
+        b.insert(
+          database.activities,
+          db.ActivitiesCompanion(
+            name: Value(name),
+            type: const Value('everyday'),
+            date: Value(_iso(d)),
+            description: Value(description),
+            chunkId: Value(chunkId),
+            startDate: const Value.absent(),
+            endDate: const Value.absent(),
+            completed: const Value(0),
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> updateEverydayActivity({
+    required int id,
+    required String name,
+    required String date,
+    required int chunkId,
+    required String type,
+    required String description,
+  }) async {
+    await database.batch((b) {
+      b.update(
+        database.activities,
+        db.ActivitiesCompanion(
+          name: Value(name),
+          description: Value(description),
+          type: Value(type),
+        ),
+        where: (tbl) => tbl.chunkId.equals(chunkId) & tbl.type.equals(type),
+      );
+    });
+  }
+
+  Future<void> addPeriodicActivity({
     required String name,
     required DateTime date,
     required int chunkId,
+    required String description,
   }) {
     return database
         .into(database.activities)
         .insert(
           db.ActivitiesCompanion(
             name: Value(name),
-            type: const Value('repeatable'),
+            type: const Value('periodic'),
             date: Value(_iso(date)),
+            description: Value(description),
             chunkId: Value(chunkId),
             startDate: const Value.absent(),
             endDate: const Value.absent(),
@@ -89,31 +141,33 @@ class ChunkActivityService {
         );
   }
 
-  Future<int> addOneOffActivity({
+  Future<void> updatePeriodicActivity({
+    required int id,
     required String name,
-    required DateTime date,
+    required String date,
     required int chunkId,
-  }) {
-    return database
-        .into(database.activities)
-        .insert(
-          db.ActivitiesCompanion(
-            name: Value(name),
-            type: const Value('one_off'),
-            date: Value(_iso(date)),
-            chunkId: Value(chunkId),
-            startDate: const Value.absent(),
-            endDate: const Value.absent(),
-            completed: const Value(0),
-          ),
-        );
+    required String description,
+    required String type,
+  }) async {
+    await (database.update(database.activities)
+      ..where((a) => a.id.equals(id))).write(
+      db.ActivitiesCompanion(
+        id: Value(id),
+        name: Value(name),
+        date: Value(date),
+        chunkId: Value(chunkId),
+        description: Value(description),
+        type: Value(type),
+      ),
+    );
   }
 
-  Future<int> addRangeActivity({
+  Future<void> addRangeActivity({
     required String name,
     required DateTime startDate,
     required DateTime endDate,
     required int chunkId,
+    required String description,
   }) {
     return database
         .into(database.activities)
@@ -121,6 +175,7 @@ class ChunkActivityService {
           db.ActivitiesCompanion(
             name: Value(name),
             type: const Value('range'),
+            description: Value(description),
             startDate: Value(_iso(startDate)),
             endDate: Value(_iso(endDate)),
             date: const Value.absent(),
@@ -128,6 +183,29 @@ class ChunkActivityService {
             completed: const Value(0),
           ),
         );
+  }
+
+  Future<void> updateRangeActivity({
+    required int id,
+    required String name,
+    required String startDate,
+    required String endDate,
+    required int chunkId,
+    required String description,
+    required String type,
+  }) async {
+    await (database.update(database.activities)
+      ..where((a) => a.id.equals(id))).write(
+      db.ActivitiesCompanion(
+        id: Value(id),
+        name: Value(name),
+        startDate: Value(startDate),
+        endDate: Value(endDate),
+        chunkId: Value(chunkId),
+        description: Value(description),
+        type: Value(type),
+      ),
+    );
   }
 
   Future<void> setActivityCompleted(int activityId, bool completed) {
