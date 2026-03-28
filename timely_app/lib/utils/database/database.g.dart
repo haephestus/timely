@@ -79,9 +79,11 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
     requiredDuringInsert: false,
     $customConstraints: '',
   );
-  static const VerificationMeta _dayMeta = const VerificationMeta('day');
-  late final GeneratedColumn<String> day = GeneratedColumn<String>(
-    'day',
+  static const VerificationMeta _weekdayMeta = const VerificationMeta(
+    'weekday',
+  );
+  late final GeneratedColumn<String> weekday = GeneratedColumn<String>(
+    'weekday',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -97,7 +99,7 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
     startHour,
     endHour,
     date,
-    day,
+    weekday,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -154,10 +156,10 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
         date.isAcceptableOrUnknown(data['date']!, _dateMeta),
       );
     }
-    if (data.containsKey('day')) {
+    if (data.containsKey('weekday')) {
       context.handle(
-        _dayMeta,
-        day.isAcceptableOrUnknown(data['day']!, _dayMeta),
+        _weekdayMeta,
+        weekday.isAcceptableOrUnknown(data['weekday']!, _weekdayMeta),
       );
     }
     return context;
@@ -197,9 +199,9 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
         DriftSqlType.string,
         data['${effectivePrefix}date'],
       ),
-      day: attachedDatabase.typeMapping.read(
+      weekday: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}day'],
+        data['${effectivePrefix}weekday'],
       ),
     );
   }
@@ -211,7 +213,7 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
 
   @override
   List<String> get customConstraints => const [
-    'CHECK((type = \'daily\' AND startHour IS NOT NULL AND endHour IS NOT NULL AND date IS NULL AND day IS NULL)OR(type = \'periodic\' AND date IS NOT NULL AND startHour IS NOT NULL AND endHour IS NOT NULL AND day IS NOT NULL))',
+    'CHECK((type = \'daily\' AND startHour IS NOT NULL AND endHour IS NOT NULL AND date IS NULL AND weekday IS NULL)OR(type = \'periodic\' AND date IS NOT NULL AND startHour IS NOT NULL AND endHour IS NOT NULL AND weekday IS NOT NULL))',
   ];
   @override
   bool get dontWriteConstraints => true;
@@ -225,7 +227,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
   final int? startHour;
   final int? endHour;
   final String? date;
-  final String? day;
+  final String? weekday;
   const Chunk({
     this.id,
     required this.name,
@@ -234,7 +236,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
     this.startHour,
     this.endHour,
     this.date,
-    this.day,
+    this.weekday,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -254,8 +256,8 @@ class Chunk extends DataClass implements Insertable<Chunk> {
     if (!nullToAbsent || date != null) {
       map['date'] = Variable<String>(date);
     }
-    if (!nullToAbsent || day != null) {
-      map['day'] = Variable<String>(day);
+    if (!nullToAbsent || weekday != null) {
+      map['weekday'] = Variable<String>(weekday);
     }
     return map;
   }
@@ -273,7 +275,9 @@ class Chunk extends DataClass implements Insertable<Chunk> {
           ? const Value.absent()
           : Value(endHour),
       date: date == null && nullToAbsent ? const Value.absent() : Value(date),
-      day: day == null && nullToAbsent ? const Value.absent() : Value(day),
+      weekday: weekday == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekday),
     );
   }
 
@@ -290,7 +294,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
       startHour: serializer.fromJson<int?>(json['startHour']),
       endHour: serializer.fromJson<int?>(json['endHour']),
       date: serializer.fromJson<String?>(json['date']),
-      day: serializer.fromJson<String?>(json['day']),
+      weekday: serializer.fromJson<String?>(json['weekday']),
     );
   }
   @override
@@ -304,7 +308,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
       'startHour': serializer.toJson<int?>(startHour),
       'endHour': serializer.toJson<int?>(endHour),
       'date': serializer.toJson<String?>(date),
-      'day': serializer.toJson<String?>(day),
+      'weekday': serializer.toJson<String?>(weekday),
     };
   }
 
@@ -316,7 +320,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
     Value<int?> startHour = const Value.absent(),
     Value<int?> endHour = const Value.absent(),
     Value<String?> date = const Value.absent(),
-    Value<String?> day = const Value.absent(),
+    Value<String?> weekday = const Value.absent(),
   }) => Chunk(
     id: id.present ? id.value : this.id,
     name: name ?? this.name,
@@ -325,7 +329,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
     startHour: startHour.present ? startHour.value : this.startHour,
     endHour: endHour.present ? endHour.value : this.endHour,
     date: date.present ? date.value : this.date,
-    day: day.present ? day.value : this.day,
+    weekday: weekday.present ? weekday.value : this.weekday,
   );
   Chunk copyWithCompanion(ChunksCompanion data) {
     return Chunk(
@@ -336,7 +340,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
       startHour: data.startHour.present ? data.startHour.value : this.startHour,
       endHour: data.endHour.present ? data.endHour.value : this.endHour,
       date: data.date.present ? data.date.value : this.date,
-      day: data.day.present ? data.day.value : this.day,
+      weekday: data.weekday.present ? data.weekday.value : this.weekday,
     );
   }
 
@@ -350,14 +354,14 @@ class Chunk extends DataClass implements Insertable<Chunk> {
           ..write('startHour: $startHour, ')
           ..write('endHour: $endHour, ')
           ..write('date: $date, ')
-          ..write('day: $day')
+          ..write('weekday: $weekday')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode =>
-      Object.hash(id, name, type, isActive, startHour, endHour, date, day);
+      Object.hash(id, name, type, isActive, startHour, endHour, date, weekday);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -369,7 +373,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
           other.startHour == this.startHour &&
           other.endHour == this.endHour &&
           other.date == this.date &&
-          other.day == this.day);
+          other.weekday == this.weekday);
 }
 
 class ChunksCompanion extends UpdateCompanion<Chunk> {
@@ -380,7 +384,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
   final Value<int?> startHour;
   final Value<int?> endHour;
   final Value<String?> date;
-  final Value<String?> day;
+  final Value<String?> weekday;
   const ChunksCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -389,7 +393,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
     this.startHour = const Value.absent(),
     this.endHour = const Value.absent(),
     this.date = const Value.absent(),
-    this.day = const Value.absent(),
+    this.weekday = const Value.absent(),
   });
   ChunksCompanion.insert({
     this.id = const Value.absent(),
@@ -399,7 +403,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
     this.startHour = const Value.absent(),
     this.endHour = const Value.absent(),
     this.date = const Value.absent(),
-    this.day = const Value.absent(),
+    this.weekday = const Value.absent(),
   }) : name = Value(name),
        type = Value(type);
   static Insertable<Chunk> custom({
@@ -410,7 +414,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
     Expression<int>? startHour,
     Expression<int>? endHour,
     Expression<String>? date,
-    Expression<String>? day,
+    Expression<String>? weekday,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -420,7 +424,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
       if (startHour != null) 'startHour': startHour,
       if (endHour != null) 'endHour': endHour,
       if (date != null) 'date': date,
-      if (day != null) 'day': day,
+      if (weekday != null) 'weekday': weekday,
     });
   }
 
@@ -432,7 +436,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
     Value<int?>? startHour,
     Value<int?>? endHour,
     Value<String?>? date,
-    Value<String?>? day,
+    Value<String?>? weekday,
   }) {
     return ChunksCompanion(
       id: id ?? this.id,
@@ -442,7 +446,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
       startHour: startHour ?? this.startHour,
       endHour: endHour ?? this.endHour,
       date: date ?? this.date,
-      day: day ?? this.day,
+      weekday: weekday ?? this.weekday,
     );
   }
 
@@ -470,8 +474,8 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
     if (date.present) {
       map['date'] = Variable<String>(date.value);
     }
-    if (day.present) {
-      map['day'] = Variable<String>(day.value);
+    if (weekday.present) {
+      map['weekday'] = Variable<String>(weekday.value);
     }
     return map;
   }
@@ -486,7 +490,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
           ..write('startHour: $startHour, ')
           ..write('endHour: $endHour, ')
           ..write('date: $date, ')
-          ..write('day: $day')
+          ..write('weekday: $weekday')
           ..write(')'))
         .toString();
   }
@@ -546,6 +550,17 @@ class Activities extends Table with TableInfo<Activities, Activity> {
     requiredDuringInsert: false,
     $customConstraints: '',
   );
+  static const VerificationMeta _weekdayMeta = const VerificationMeta(
+    'weekday',
+  );
+  late final GeneratedColumn<String> weekday = GeneratedColumn<String>(
+    'weekday',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
   static const VerificationMeta _startDateMeta = const VerificationMeta(
     'startDate',
   );
@@ -598,6 +613,7 @@ class Activities extends Table with TableInfo<Activities, Activity> {
     description,
     type,
     date,
+    weekday,
     startDate,
     endDate,
     completed,
@@ -649,6 +665,12 @@ class Activities extends Table with TableInfo<Activities, Activity> {
       context.handle(
         _dateMeta,
         date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    }
+    if (data.containsKey('weekday')) {
+      context.handle(
+        _weekdayMeta,
+        weekday.isAcceptableOrUnknown(data['weekday']!, _weekdayMeta),
       );
     }
     if (data.containsKey('startDate')) {
@@ -706,6 +728,10 @@ class Activities extends Table with TableInfo<Activities, Activity> {
         DriftSqlType.string,
         data['${effectivePrefix}date'],
       ),
+      weekday: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}weekday'],
+      ),
       startDate: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}startDate'],
@@ -732,7 +758,7 @@ class Activities extends Table with TableInfo<Activities, Activity> {
 
   @override
   List<String> get customConstraints => const [
-    'CHECK((type = \'everyday\' AND date IS NOT NULL AND startDate IS NULL AND endDate IS NULL)OR(type = \'periodic\' AND date IS NOT NULL AND startDate IS NULL AND endDate IS NULL)OR(type = \'range\' AND date IS NULL AND startDate IS NOT NULL AND endDate IS NOT NULL AND startDate <= endDate))',
+    'CHECK((type = \'everyday\' AND date IS NOT NULL AND startDate IS NULL AND endDate IS NULL)OR(type = \'periodic\' AND weekday IS NOT NULL AND startDate IS NULL AND endDate IS NULL)OR(type = \'range\' AND date IS NULL AND startDate IS NOT NULL AND endDate IS NOT NULL AND startDate <= endDate))',
   ];
   @override
   bool get dontWriteConstraints => true;
@@ -746,6 +772,7 @@ class Activity extends DataClass implements Insertable<Activity> {
 
   /// used by everyday + periodic
   final String? date;
+  final String? weekday;
 
   /// used by range
   final String? startDate;
@@ -758,6 +785,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     required this.description,
     required this.type,
     this.date,
+    this.weekday,
     this.startDate,
     this.endDate,
     required this.completed,
@@ -774,6 +802,9 @@ class Activity extends DataClass implements Insertable<Activity> {
     map['type'] = Variable<String>(type);
     if (!nullToAbsent || date != null) {
       map['date'] = Variable<String>(date);
+    }
+    if (!nullToAbsent || weekday != null) {
+      map['weekday'] = Variable<String>(weekday);
     }
     if (!nullToAbsent || startDate != null) {
       map['startDate'] = Variable<String>(startDate);
@@ -793,6 +824,9 @@ class Activity extends DataClass implements Insertable<Activity> {
       description: Value(description),
       type: Value(type),
       date: date == null && nullToAbsent ? const Value.absent() : Value(date),
+      weekday: weekday == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weekday),
       startDate: startDate == null && nullToAbsent
           ? const Value.absent()
           : Value(startDate),
@@ -815,6 +849,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       description: serializer.fromJson<String>(json['description']),
       type: serializer.fromJson<String>(json['type']),
       date: serializer.fromJson<String?>(json['date']),
+      weekday: serializer.fromJson<String?>(json['weekday']),
       startDate: serializer.fromJson<String?>(json['startDate']),
       endDate: serializer.fromJson<String?>(json['endDate']),
       completed: serializer.fromJson<int>(json['completed']),
@@ -830,6 +865,7 @@ class Activity extends DataClass implements Insertable<Activity> {
       'description': serializer.toJson<String>(description),
       'type': serializer.toJson<String>(type),
       'date': serializer.toJson<String?>(date),
+      'weekday': serializer.toJson<String?>(weekday),
       'startDate': serializer.toJson<String?>(startDate),
       'endDate': serializer.toJson<String?>(endDate),
       'completed': serializer.toJson<int>(completed),
@@ -843,6 +879,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     String? description,
     String? type,
     Value<String?> date = const Value.absent(),
+    Value<String?> weekday = const Value.absent(),
     Value<String?> startDate = const Value.absent(),
     Value<String?> endDate = const Value.absent(),
     int? completed,
@@ -853,6 +890,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     description: description ?? this.description,
     type: type ?? this.type,
     date: date.present ? date.value : this.date,
+    weekday: weekday.present ? weekday.value : this.weekday,
     startDate: startDate.present ? startDate.value : this.startDate,
     endDate: endDate.present ? endDate.value : this.endDate,
     completed: completed ?? this.completed,
@@ -867,6 +905,7 @@ class Activity extends DataClass implements Insertable<Activity> {
           : this.description,
       type: data.type.present ? data.type.value : this.type,
       date: data.date.present ? data.date.value : this.date,
+      weekday: data.weekday.present ? data.weekday.value : this.weekday,
       startDate: data.startDate.present ? data.startDate.value : this.startDate,
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
       completed: data.completed.present ? data.completed.value : this.completed,
@@ -882,6 +921,7 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('description: $description, ')
           ..write('type: $type, ')
           ..write('date: $date, ')
+          ..write('weekday: $weekday, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
           ..write('completed: $completed, ')
@@ -897,6 +937,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     description,
     type,
     date,
+    weekday,
     startDate,
     endDate,
     completed,
@@ -911,6 +952,7 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.description == this.description &&
           other.type == this.type &&
           other.date == this.date &&
+          other.weekday == this.weekday &&
           other.startDate == this.startDate &&
           other.endDate == this.endDate &&
           other.completed == this.completed &&
@@ -923,6 +965,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<String> description;
   final Value<String> type;
   final Value<String?> date;
+  final Value<String?> weekday;
   final Value<String?> startDate;
   final Value<String?> endDate;
   final Value<int> completed;
@@ -933,6 +976,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.description = const Value.absent(),
     this.type = const Value.absent(),
     this.date = const Value.absent(),
+    this.weekday = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
     this.completed = const Value.absent(),
@@ -944,6 +988,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     required String description,
     required String type,
     this.date = const Value.absent(),
+    this.weekday = const Value.absent(),
     this.startDate = const Value.absent(),
     this.endDate = const Value.absent(),
     this.completed = const Value.absent(),
@@ -958,6 +1003,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<String>? description,
     Expression<String>? type,
     Expression<String>? date,
+    Expression<String>? weekday,
     Expression<String>? startDate,
     Expression<String>? endDate,
     Expression<int>? completed,
@@ -969,6 +1015,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (description != null) 'description': description,
       if (type != null) 'type': type,
       if (date != null) 'date': date,
+      if (weekday != null) 'weekday': weekday,
       if (startDate != null) 'startDate': startDate,
       if (endDate != null) 'endDate': endDate,
       if (completed != null) 'completed': completed,
@@ -982,6 +1029,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<String>? description,
     Value<String>? type,
     Value<String?>? date,
+    Value<String?>? weekday,
     Value<String?>? startDate,
     Value<String?>? endDate,
     Value<int>? completed,
@@ -993,6 +1041,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       description: description ?? this.description,
       type: type ?? this.type,
       date: date ?? this.date,
+      weekday: weekday ?? this.weekday,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       completed: completed ?? this.completed,
@@ -1018,6 +1067,9 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (date.present) {
       map['date'] = Variable<String>(date.value);
     }
+    if (weekday.present) {
+      map['weekday'] = Variable<String>(weekday.value);
+    }
     if (startDate.present) {
       map['startDate'] = Variable<String>(startDate.value);
     }
@@ -1041,6 +1093,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('description: $description, ')
           ..write('type: $type, ')
           ..write('date: $date, ')
+          ..write('weekday: $weekday, ')
           ..write('startDate: $startDate, ')
           ..write('endDate: $endDate, ')
           ..write('completed: $completed, ')
@@ -1079,10 +1132,10 @@ abstract class _$AppDb extends GeneratedDatabase {
     ).asyncMap(chunks.mapFromRow);
   }
 
-  Selectable<Activity> getActivitiesByChunkId(int var1) {
+  Selectable<Activity> getActivitiesByChunkId(int var1, String var2) {
     return customSelect(
-      'SELECT * FROM activities WHERE chunkId = ?1 AND((type IN (\'everyday\', \'periodic\') AND date(\'now\') = date(date))OR(type = \'range\' AND DATE(\'now\') BETWEEN date(startDate) AND date(startDate)))',
-      variables: [Variable<int>(var1)],
+      'SELECT * FROM activities WHERE chunkId = ?1 AND((type = \'everyday\' AND date(?2) = date(date))OR(type = \'periodic\' AND(instr(weekday, \'[\' || CASE CAST(strftime(\'%w\', ?2, \'localtime\') AS INTEGER) WHEN 0 THEN \'Sunday\' WHEN 1 THEN \'Monday\' WHEN 2 THEN \'Tuesday\' WHEN 3 THEN \'Wednesday\' WHEN 4 THEN \'Thursday\' WHEN 5 THEN \'Friday\' WHEN 6 THEN \'Saturday\' END) > 0 OR instr(weekday, \', \' || CASE CAST(strftime(\'%w\', ?2, \'localtime\') AS INTEGER) WHEN 0 THEN \'Sunday\' WHEN 1 THEN \'Monday\' WHEN 2 THEN \'Tuesday\' WHEN 3 THEN \'Wednesday\' WHEN 4 THEN \'Thursday\' WHEN 5 THEN \'Friday\' WHEN 6 THEN \'Saturday\' END) > 0))OR(type = \'range\' AND date(?2) BETWEEN date(startDate) AND date(endDate)))',
+      variables: [Variable<int>(var1), Variable<String>(var2)],
       readsFrom: {activities},
     ).asyncMap(activities.mapFromRow);
   }
@@ -1131,7 +1184,7 @@ typedef $ChunksCreateCompanionBuilder =
       Value<int?> startHour,
       Value<int?> endHour,
       Value<String?> date,
-      Value<String?> day,
+      Value<String?> weekday,
     });
 typedef $ChunksUpdateCompanionBuilder =
     ChunksCompanion Function({
@@ -1142,7 +1195,7 @@ typedef $ChunksUpdateCompanionBuilder =
       Value<int?> startHour,
       Value<int?> endHour,
       Value<String?> date,
-      Value<String?> day,
+      Value<String?> weekday,
     });
 
 final class $ChunksReferences extends BaseReferences<_$AppDb, Chunks, Chunk> {
@@ -1211,8 +1264,8 @@ class $ChunksFilterComposer extends Composer<_$AppDb, Chunks> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get day => $composableBuilder(
-    column: $table.day,
+  ColumnFilters<String> get weekday => $composableBuilder(
+    column: $table.weekday,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1285,8 +1338,8 @@ class $ChunksOrderingComposer extends Composer<_$AppDb, Chunks> {
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get day => $composableBuilder(
-    column: $table.day,
+  ColumnOrderings<String> get weekday => $composableBuilder(
+    column: $table.weekday,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -1320,8 +1373,8 @@ class $ChunksAnnotationComposer extends Composer<_$AppDb, Chunks> {
   GeneratedColumn<String> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 
-  GeneratedColumn<String> get day =>
-      $composableBuilder(column: $table.day, builder: (column) => column);
+  GeneratedColumn<String> get weekday =>
+      $composableBuilder(column: $table.weekday, builder: (column) => column);
 
   Expression<T> activitiesRefs<T extends Object>(
     Expression<T> Function($ActivitiesAnnotationComposer a) f,
@@ -1384,7 +1437,7 @@ class $ChunksTableManager
                 Value<int?> startHour = const Value.absent(),
                 Value<int?> endHour = const Value.absent(),
                 Value<String?> date = const Value.absent(),
-                Value<String?> day = const Value.absent(),
+                Value<String?> weekday = const Value.absent(),
               }) => ChunksCompanion(
                 id: id,
                 name: name,
@@ -1393,7 +1446,7 @@ class $ChunksTableManager
                 startHour: startHour,
                 endHour: endHour,
                 date: date,
-                day: day,
+                weekday: weekday,
               ),
           createCompanionCallback:
               ({
@@ -1404,7 +1457,7 @@ class $ChunksTableManager
                 Value<int?> startHour = const Value.absent(),
                 Value<int?> endHour = const Value.absent(),
                 Value<String?> date = const Value.absent(),
-                Value<String?> day = const Value.absent(),
+                Value<String?> weekday = const Value.absent(),
               }) => ChunksCompanion.insert(
                 id: id,
                 name: name,
@@ -1413,7 +1466,7 @@ class $ChunksTableManager
                 startHour: startHour,
                 endHour: endHour,
                 date: date,
-                day: day,
+                weekday: weekday,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), $ChunksReferences(db, table, e)))
@@ -1466,6 +1519,7 @@ typedef $ActivitiesCreateCompanionBuilder =
       required String description,
       required String type,
       Value<String?> date,
+      Value<String?> weekday,
       Value<String?> startDate,
       Value<String?> endDate,
       Value<int> completed,
@@ -1478,6 +1532,7 @@ typedef $ActivitiesUpdateCompanionBuilder =
       Value<String> description,
       Value<String> type,
       Value<String?> date,
+      Value<String?> weekday,
       Value<String?> startDate,
       Value<String?> endDate,
       Value<int> completed,
@@ -1537,6 +1592,11 @@ class $ActivitiesFilterComposer extends Composer<_$AppDb, Activities> {
 
   ColumnFilters<String> get date => $composableBuilder(
     column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get weekday => $composableBuilder(
+    column: $table.weekday,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1612,6 +1672,11 @@ class $ActivitiesOrderingComposer extends Composer<_$AppDb, Activities> {
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get weekday => $composableBuilder(
+    column: $table.weekday,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get startDate => $composableBuilder(
     column: $table.startDate,
     builder: (column) => ColumnOrderings(column),
@@ -1675,6 +1740,9 @@ class $ActivitiesAnnotationComposer extends Composer<_$AppDb, Activities> {
 
   GeneratedColumn<String> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get weekday =>
+      $composableBuilder(column: $table.weekday, builder: (column) => column);
 
   GeneratedColumn<String> get startDate =>
       $composableBuilder(column: $table.startDate, builder: (column) => column);
@@ -1742,6 +1810,7 @@ class $ActivitiesTableManager
                 Value<String> description = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<String?> date = const Value.absent(),
+                Value<String?> weekday = const Value.absent(),
                 Value<String?> startDate = const Value.absent(),
                 Value<String?> endDate = const Value.absent(),
                 Value<int> completed = const Value.absent(),
@@ -1752,6 +1821,7 @@ class $ActivitiesTableManager
                 description: description,
                 type: type,
                 date: date,
+                weekday: weekday,
                 startDate: startDate,
                 endDate: endDate,
                 completed: completed,
@@ -1764,6 +1834,7 @@ class $ActivitiesTableManager
                 required String description,
                 required String type,
                 Value<String?> date = const Value.absent(),
+                Value<String?> weekday = const Value.absent(),
                 Value<String?> startDate = const Value.absent(),
                 Value<String?> endDate = const Value.absent(),
                 Value<int> completed = const Value.absent(),
@@ -1774,6 +1845,7 @@ class $ActivitiesTableManager
                 description: description,
                 type: type,
                 date: date,
+                weekday: weekday,
                 startDate: startDate,
                 endDate: endDate,
                 completed: completed,

@@ -7,12 +7,12 @@ CREATE TABLE chunks (
     startHour INT,
     endHour INT,
     date TEXT,
-    day TEXT,
+    weekday TEXT,
 
     CHECK(
-      (type = 'daily' AND startHour IS NOT NULL AND endHour IS NOT NULL AND date IS NULL AND day IS NULL)
+      (type = 'daily' AND startHour IS NOT NULL AND endHour IS NOT NULL AND date IS NULL AND weekday IS NULL)
       OR
-      (type = 'periodic' AND date IS NOT NULL AND startHour IS NOT NULL AND endHour IS NOT NULL AND day is NOT NULL)
+      (type = 'periodic' AND date IS NOT NULL AND startHour IS NOT NULL AND endHour IS NOT NULL AND weekday is NOT NULL)
     )
   ) AS Chunk;
 
@@ -27,6 +27,7 @@ CREATE TABLE activities (
 
   -- used by everyday + periodic
   date TEXT,
+  weekday TEXT,
 
   -- used by range
   startDate TEXT,
@@ -49,7 +50,7 @@ CREATE TABLE activities (
 
     -- periodic: single date
     (type = 'periodic'
-      AND date IS NOT NULL
+      AND weekday IS NOT NULL
       AND startDate IS NULL
       AND endDate IS NULL)
 
@@ -71,12 +72,22 @@ CREATE TABLE activities (
 getAllChunks: SELECT * FROM chunks;
 getActiveChunks: SELECT * FROM chunks WHERE isActive = 1;
 getChunkInfoByChunkName: SELECT * FROM chunks WHERE name = ?;
-getActivitiesByChunkId: SELECT * FROM activities WHERE chunkId = ? AND (
-(type IN ('everyday', 'periodic') AND  date('now')=date(date) )
-OR
-(type = 'range' AND DATE('now') BETWEEN date(startDate) AND date(startDate))
+getActivitiesByChunkId: SELECT * FROM activities WHERE chunkId = ?1 AND (
+  (type = 'everyday' AND date(?2) = date(date))
+  OR
+  (type = 'periodic' AND (
+    instr(weekday, '[' || CASE CAST(strftime('%w', ?2, 'localtime') AS INTEGER)
+      WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday'
+      WHEN 3 THEN 'Wednesday' WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday'
+      WHEN 6 THEN 'Saturday' END) > 0
+    OR instr(weekday, ', ' || CASE CAST(strftime('%w', ?2, 'localtime') AS INTEGER)
+      WHEN 0 THEN 'Sunday' WHEN 1 THEN 'Monday' WHEN 2 THEN 'Tuesday'
+      WHEN 3 THEN 'Wednesday' WHEN 4 THEN 'Thursday' WHEN 5 THEN 'Friday'
+      WHEN 6 THEN 'Saturday' END) > 0
+  ))
+  OR
+  (type = 'range' AND date(?2) BETWEEN date(startDate) AND date(endDate))
 );
-
 -- Update
 
 

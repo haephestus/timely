@@ -4,6 +4,7 @@ import 'package:timely_app/models/chunk.dart' as model;
 import 'package:timely_app/utils/calendar_utils.dart' as cal;
 import 'package:timely_app/utils/database/database.dart';
 import 'package:timely_app/utils/database/services.dart';
+import 'package:day_picker/day_picker.dart';
 
 /// should be able to add, delete, edit activities
 /// pass a single activity to this screen to manage
@@ -51,7 +52,7 @@ class _ActivityManagerState extends State<ActivityManager> {
           description: a.description,
         ),
         PeriodicActivity a => PeriodicActivity(
-          date: a.date,
+          weekday: a.weekday,
           name: a.name,
           description: a.description,
         ),
@@ -89,26 +90,92 @@ class _ActivityManagerState extends State<ActivityManager> {
   }
 
   Future<void> _periodicDatePicker(ActivityType type) async {
-    DateTime? periodicDate = await showDatePicker(
+    List<String> selectedDays = [];
+
+    // Pre-populate if editing an existing activity
+    if (_activity is PeriodicActivity) {
+      selectedDays = (_activity as PeriodicActivity).weekday;
+    }
+
+    final days = [
+      DayInWeek(
+        "Mon",
+        dayKey: "Monday",
+        isSelected: selectedDays.contains("Monday"),
+      ),
+      DayInWeek(
+        "Tue",
+        dayKey: "Tuesday",
+        isSelected: selectedDays.contains("Tuesday"),
+      ),
+      DayInWeek(
+        "Wed",
+        dayKey: "Wednesday",
+        isSelected: selectedDays.contains("Wednesday"),
+      ),
+      DayInWeek(
+        "Thu",
+        dayKey: "Thursday",
+        isSelected: selectedDays.contains("Thursday"),
+      ),
+      DayInWeek(
+        "Fri",
+        dayKey: "Friday",
+        isSelected: selectedDays.contains("Friday"),
+      ),
+      DayInWeek(
+        "Sat",
+        dayKey: "Saturday",
+        isSelected: selectedDays.contains("Saturday"),
+      ),
+      DayInWeek(
+        "Sun",
+        dayKey: "Sunday",
+        isSelected: selectedDays.contains("Sunday"),
+      ),
+    ];
+
+    await showDialog(
       context: context,
-      firstDate: cal.kFirstDay,
-      lastDate: cal.kLastDay,
-      initialEntryMode: DatePickerEntryMode.calendar,
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Repeat on"),
+            content: SelectWeekDays(
+              days: days,
+              border: false,
+              boxDecoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              selectedDaysFillColor: Theme.of(context).colorScheme.primary,
+              selectedDayTextColor: Theme.of(context).colorScheme.onPrimary,
+              onSelect: (values) => selectedDays = values,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Done"),
+              ),
+            ],
+          ),
     );
 
-    if (periodicDate != null) {
+    if (selectedDays.isNotEmpty) {
       setState(() {
         _type = type;
         _activity = PeriodicActivity(
           name: _nameController.text,
           description: _descriptionController.text,
-          date: periodicDate,
+          weekday: selectedDays,
         );
       });
     }
-  }
+  } // should not be a date picker
 
-  // should not be a date picker
   // should init activity everyday in activities table
   // can pick more than one day to repeat
   Future<void> _everydayDatePicker(ActivityType type) async {
@@ -144,7 +211,7 @@ class _ActivityManagerState extends State<ActivityManager> {
             id: a.id!,
             name: _activity!.name,
             type: _type.name,
-            date: a.date.toString(),
+            weekday: a.weekday.toString(),
             description: a.description,
             chunkId: widget.chunk!.chunkId!,
           ),
@@ -174,7 +241,7 @@ class _ActivityManagerState extends State<ActivityManager> {
           ),
           PeriodicActivity a => _activityService.addPeriodicActivity(
             name: name,
-            date: a.date,
+            weekday: a.weekday.toString(),
             description: description,
             chunkId: widget.chunk!.chunkId!,
           ),

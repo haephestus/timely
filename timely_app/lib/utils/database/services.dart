@@ -27,14 +27,17 @@ class ChunkActivityService {
   */
 
   /// Raw DB fetch (internal)
-  Future<List<db.Activity>> _getActivitiesFromDb(int chunkId) {
-    return database.getActivitiesByChunkId(chunkId).get();
+  Future<List<db.Activity>> _getActivitiesFromDb(int chunkId, DateTime date) {
+    final dateStr = date.toIso8601String().split('T')[0]; // "2026-03-27"
+    return database.getActivitiesByChunkId(chunkId, dateStr).get();
   }
 
   /// Public method: maps db.Activity → ChunkActivity
-  Future<List<ChunkActivity>> getActivitiesForChunk(int chunkId) async {
-    final dbActivities = await _getActivitiesFromDb(chunkId);
-
+  Future<List<ChunkActivity>> getActivitiesForChunk(
+    int chunkId,
+    DateTime date,
+  ) async {
+    final dbActivities = await _getActivitiesFromDb(chunkId, date);
     return dbActivities.map((a) {
       switch (a.type) {
         case 'everyday':
@@ -49,7 +52,7 @@ class ChunkActivityService {
             name: a.name,
             description: a.description,
             completed: a.completed == 1,
-            date: DateTime.parse(a.date!),
+            weekday: a.weekday?.split(',') ?? [],
           );
         case 'range':
           return RangeActivity(
@@ -63,9 +66,7 @@ class ChunkActivityService {
           throw Exception('Unknown activity type: ${a.type}');
       }
     }).toList();
-  }
-
-  /* =========================
+  } /* =========================
    * INSERT / UPDATE
    * =========================
   */
@@ -121,7 +122,7 @@ class ChunkActivityService {
 
   Future<void> addPeriodicActivity({
     required String name,
-    required DateTime date,
+    required String weekday,
     required int chunkId,
     required String description,
   }) {
@@ -131,7 +132,7 @@ class ChunkActivityService {
           db.ActivitiesCompanion(
             name: Value(name),
             type: const Value('periodic'),
-            date: Value(_iso(date)),
+            weekday: Value(weekday),
             description: Value(description),
             chunkId: Value(chunkId),
             startDate: const Value.absent(),
@@ -144,7 +145,7 @@ class ChunkActivityService {
   Future<void> updatePeriodicActivity({
     required int id,
     required String name,
-    required String date,
+    required String weekday,
     required int chunkId,
     required String description,
     required String type,
@@ -154,7 +155,7 @@ class ChunkActivityService {
       db.ActivitiesCompanion(
         id: Value(id),
         name: Value(name),
-        date: Value(date),
+        weekday: Value(weekday),
         chunkId: Value(chunkId),
         description: Value(description),
         type: Value(type),

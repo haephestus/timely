@@ -20,8 +20,6 @@ sealed class ChunkActivity {
 }
 
 /// A everyday activity (e.g. daily habit).
-/// Uses a single date representing the specific day instance.
-/// TODO: add ability to select specific days the activity should be everyday
 final class EverydayActivity extends ChunkActivity {
   final DateTime? date;
 
@@ -35,10 +33,10 @@ final class EverydayActivity extends ChunkActivity {
 
 /// A periodic activity that happens on a single day.
 final class PeriodicActivity extends ChunkActivity {
-  final DateTime date;
+  final List<String> weekday;
 
   PeriodicActivity({
-    required this.date,
+    required this.weekday,
     required super.name,
     super.completed = false,
     required super.description,

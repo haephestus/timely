@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timely_app/models/chunk_activity.dart';
 import 'package:timely_app/models/chunk.dart';
 import 'package:timely_app/screens/activity_manager.dart';
+import 'package:timely_app/widgets/activity/activity_card.dart';
 
 class ActivityWidget extends StatelessWidget {
   final Chunk? chunk;
@@ -59,16 +60,8 @@ class ActivityWidget extends StatelessWidget {
                 }
                 final activity = activities[index - 1];
                 // WARN: builds list of activities
-                // show ranged activities -> show activity if date in range
-                // show everyday activities -> straight forward
-                // show periodic activities -> show activity based on date or day
-                return CheckboxListTile(
-                  title: Text(activity.name),
-                  subtitle: Text(activity.description),
-                  secondary: Text(activity.type.name),
-                  value: activity.completed,
-                  onChanged: (_) {},
-                );
+                // add custom listview
+                return ActivityCard(activity: activity);
               },
             ),
           ),

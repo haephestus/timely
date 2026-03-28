@@ -8,7 +8,7 @@ import 'package:timely_app/screens/chunk_manager.dart';
 import 'package:timely_app/utils/database/database.dart' as db;
 
 import 'package:timely_app/widgets/timeline/horizontal_timeline.dart';
-import 'package:timely_app/widgets/activities/activities_widget.dart';
+import 'package:timely_app/widgets/activity/activities_widget.dart';
 
 import 'package:timely_app/utils/database/services.dart' as service;
 import 'package:timely_app/utils/calendar_utils.dart';
@@ -78,7 +78,10 @@ class _HomePageState extends State<HomePage> {
 
   /// Load activities for a given chunk
   Future<void> _loadChunkActivities(int chunkId) async {
-    final dbActivities = await _service.getActivitiesForChunk(chunkId);
+    final dbActivities = await _service.getActivitiesForChunk(
+      chunkId,
+      _selectedDay,
+    );
 
     if (!mounted) return;
 
@@ -109,6 +112,8 @@ class _HomePageState extends State<HomePage> {
       */
       body: Column(
         children: [
+          Text(_focusedDay.day.toString()),
+
           /// WEEK CALENDAR (day selector)
           Listener(
             onPointerSignal: (pointerSignal) {
@@ -144,6 +149,9 @@ class _HomePageState extends State<HomePage> {
                   _focusedDay = focusedDay;
                   _selectedChunk = _chunks.isNotEmpty ? _chunks.first : null;
                 });
+                if (_selectedChunk != null) {
+                  _loadChunkActivities(_selectedChunk!.chunkId!);
+                }
               },
               onPageChanged: (focusedDay) {
                 _focusedDay = focusedDay;
