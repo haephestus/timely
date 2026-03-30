@@ -1,3 +1,5 @@
+// activity_manager.dart
+
 import 'package:flutter/material.dart';
 import 'package:timely_app/models/chunk_activity.dart';
 import 'package:timely_app/models/chunk.dart' as model;
@@ -5,13 +7,13 @@ import 'package:timely_app/utils/calendar_utils.dart' as cal;
 import 'package:timely_app/utils/database/database.dart';
 import 'package:timely_app/utils/database/services.dart';
 import 'package:day_picker/day_picker.dart';
+import 'package:day_night_time_picker/day_night_time_picker.dart';
 
-/// should be able to add, delete, edit activities
-/// pass a single activity to this screen to manage
 class ActivityManager extends StatefulWidget {
   final model.Chunk? chunk;
   final bool isEdit;
   final ChunkActivity? activity;
+
   const ActivityManager({
     super.key,
     required this.chunk,
@@ -24,17 +26,17 @@ class ActivityManager extends StatefulWidget {
 }
 
 class _ActivityManagerState extends State<ActivityManager> {
-  final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
 
   late final ChunkActivityService _activityService;
-  DateTime? selectedDate;
-  DateTimeRange? selectedRangeDate;
-  DateTime? startDate;
-  DateTime? endDate;
+  late final AppDb _db;
+
   ChunkActivity? _activity;
   ActivityType _type = ActivityType.everyday;
-  late final AppDb _db;
+
+  // Time fields
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
 
   @override
   void initState() {
@@ -43,34 +45,96 @@ class _ActivityManagerState extends State<ActivityManager> {
     _activityService = ChunkActivityService(_db);
 
     if (widget.isEdit && widget.activity != null) {
-      //load the activity data into the widget
-      _activity = switch (widget.activity!) {
-        RangeActivity a => RangeActivity(
-          name: a.name,
-          startDate: a.startDate,
-          endDate: a.endDate,
-          description: a.description,
+      final a = widget.activity!;
+      _descriptionController.text = a.description;
+      _type = a.type;
+
+      // Parse existing times if present
+      if (a.startTime != null) _startTime = _parseTime(a.startTime!);
+      if (a.endTime != null) _endTime = _parseTime(a.endTime!);
+
+      _activity = switch (a) {
+        RangeActivity r => RangeActivity(
+          id: r.id,
+          startDate: r.startDate,
+          endDate: r.endDate,
+          description: r.description,
+          startTime: r.startTime,
+          endTime: r.endTime,
         ),
-        PeriodicActivity a => PeriodicActivity(
-          weekday: a.weekday,
-          name: a.name,
-          description: a.description,
+        PeriodicActivity p => PeriodicActivity(
+          id: p.id,
+          weekday: p.weekday,
+          description: p.description,
+          startTime: p.startTime,
+          endTime: p.endTime,
         ),
-        EverydayActivity a => EverydayActivity(
-          date: a.date,
-          name: a.name,
-          description: a.description,
+        EverydayActivity e => EverydayActivity(
+          id: e.id,
+          date: e.date,
+          description: e.description,
+          startTime: e.startTime,
+          endTime: e.endTime,
         ),
       };
-    } else if (_type == ActivityType.everyday) {
+    } else {
       final now = DateTime.now();
-      _activity = EverydayActivity(date: now, name: "", description: "");
-      selectedDate = now;
+      _activity = EverydayActivity(date: now, description: '');
     }
   }
 
+  TimeOfDay _parseTime(String t) {
+    final parts = t.split(':');
+    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+  }
+
+  String _formatTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  Future<void> _pickTime({required bool isStart}) async {
+    final chunk = widget.chunk;
+    final initial =
+        isStart
+            ? (_startTime ?? TimeOfDay(hour: chunk?.startHour ?? 8, minute: 0))
+            : (_endTime ?? TimeOfDay(hour: chunk?.endHour ?? 9, minute: 0));
+
+    Navigator.of(context).push(
+      showPicker(
+        context: context,
+        value: Time(hour: initial.hour, minute: initial.minute),
+        minHour: (chunk?.startHour ?? 0).toDouble(),
+        maxHour: (chunk?.endHour ?? 24).toDouble(),
+        onChange: (Time newTime) {
+          // validation now uses total minutes
+          if (chunk != null) {
+            final pickedMinutes = newTime.hour * 60 + newTime.minute;
+            if (pickedMinutes < chunk.startTotalMinutes ||
+                pickedMinutes > chunk.endTotalMinutes) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Time must be within ${chunk.startTimeStr} – ${chunk.endTimeStr}',
+                  ),
+                ),
+              );
+              return;
+            }
+          }
+          setState(() {
+            final tod = TimeOfDay(hour: newTime.hour, minute: newTime.minute);
+            if (isStart) {
+              _startTime = tod;
+            } else {
+              _endTime = tod;
+            }
+          });
+        },
+      ),
+    );
+  }
+
   Future<void> _rangeDatePicker(ActivityType type) async {
-    DateTimeRange? rangeDate = await showDateRangePicker(
+    final rangeDate = await showDateRangePicker(
       context: context,
       firstDate: cal.kFirstDay,
       lastDate: cal.kLastDay,
@@ -80,7 +144,6 @@ class _ActivityManagerState extends State<ActivityManager> {
       setState(() {
         _type = type;
         _activity = RangeActivity(
-          name: _nameController.text,
           description: _descriptionController.text,
           startDate: rangeDate.start,
           endDate: rangeDate.end,
@@ -91,47 +154,45 @@ class _ActivityManagerState extends State<ActivityManager> {
 
   Future<void> _periodicDatePicker(ActivityType type) async {
     List<String> selectedDays = [];
-
-    // Pre-populate if editing an existing activity
     if (_activity is PeriodicActivity) {
       selectedDays = (_activity as PeriodicActivity).weekday;
     }
 
     final days = [
       DayInWeek(
-        "Mon",
-        dayKey: "Monday",
-        isSelected: selectedDays.contains("Monday"),
+        'Mon',
+        dayKey: 'Monday',
+        isSelected: selectedDays.contains('Monday'),
       ),
       DayInWeek(
-        "Tue",
-        dayKey: "Tuesday",
-        isSelected: selectedDays.contains("Tuesday"),
+        'Tue',
+        dayKey: 'Tuesday',
+        isSelected: selectedDays.contains('Tuesday'),
       ),
       DayInWeek(
-        "Wed",
-        dayKey: "Wednesday",
-        isSelected: selectedDays.contains("Wednesday"),
+        'Wed',
+        dayKey: 'Wednesday',
+        isSelected: selectedDays.contains('Wednesday'),
       ),
       DayInWeek(
-        "Thu",
-        dayKey: "Thursday",
-        isSelected: selectedDays.contains("Thursday"),
+        'Thu',
+        dayKey: 'Thursday',
+        isSelected: selectedDays.contains('Thursday'),
       ),
       DayInWeek(
-        "Fri",
-        dayKey: "Friday",
-        isSelected: selectedDays.contains("Friday"),
+        'Fri',
+        dayKey: 'Friday',
+        isSelected: selectedDays.contains('Friday'),
       ),
       DayInWeek(
-        "Sat",
-        dayKey: "Saturday",
-        isSelected: selectedDays.contains("Saturday"),
+        'Sat',
+        dayKey: 'Saturday',
+        isSelected: selectedDays.contains('Saturday'),
       ),
       DayInWeek(
-        "Sun",
-        dayKey: "Sunday",
-        isSelected: selectedDays.contains("Sunday"),
+        'Sun',
+        dayKey: 'Sunday',
+        isSelected: selectedDays.contains('Sunday'),
       ),
     ];
 
@@ -139,7 +200,7 @@ class _ActivityManagerState extends State<ActivityManager> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text("Repeat on"),
+            title: const Text('Repeat on'),
             content: SelectWeekDays(
               days: days,
               border: false,
@@ -154,11 +215,11 @@ class _ActivityManagerState extends State<ActivityManager> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("Cancel"),
+                child: const Text('Cancel'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("Done"),
+                child: const Text('Done'),
               ),
             ],
           ),
@@ -168,184 +229,265 @@ class _ActivityManagerState extends State<ActivityManager> {
       setState(() {
         _type = type;
         _activity = PeriodicActivity(
-          name: _nameController.text,
           description: _descriptionController.text,
           weekday: selectedDays,
         );
       });
     }
-  } // should not be a date picker
+  }
 
-  // should init activity everyday in activities table
-  // can pick more than one day to repeat
   Future<void> _everydayDatePicker(ActivityType type) async {
     setState(() {
       _type = type;
+      _activity = EverydayActivity(description: _descriptionController.text);
     });
-    _activity = EverydayActivity(
-      name: _nameController.text,
-      description: _descriptionController.text,
-    );
   }
 
   Future<void> _submitActivity() async {
-    final name = _nameController.text.trim();
     final description = _descriptionController.text.trim();
 
-    if (name.isEmpty) return;
+    if (description.isEmpty) return;
+
+    // Require both times to be set
+    if (_startTime == null || _endTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please set both start and end times')),
+      );
+      return;
+    }
+
+    // Validate start < end
+    final startMinutes = _startTime!.hour * 60 + _startTime!.minute;
+    final endMinutes = _endTime!.hour * 60 + _endTime!.minute;
+    if (startMinutes >= endMinutes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Start time must be before end time')),
+      );
+      return;
+    }
+
+    final startTimeStr = _formatTime(_startTime!);
+    final endTimeStr = _formatTime(_endTime!);
 
     try {
       if (widget.isEdit && widget.chunk != null && widget.activity != null) {
-        // load the selected activities information and edit
         await switch (_activity!) {
           RangeActivity a => _activityService.updateRangeActivity(
             id: a.id!,
             chunkId: widget.chunk!.chunkId!,
             type: _type.name,
-            description: a.description,
-            name: a.name,
-            startDate: a.startDate.toString(),
-            endDate: a.endDate.toString(),
+            description: description,
+            startDate: a.startDate.toIso8601String().split('T').first,
+            endDate: a.endDate.toIso8601String().split('T').first,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
           ),
           PeriodicActivity a => _activityService.updatePeriodicActivity(
             id: a.id!,
-            name: _activity!.name,
             type: _type.name,
-            weekday: a.weekday.toString(),
-            description: a.description,
+            weekday: a.weekday.join(','),
+            description: description,
             chunkId: widget.chunk!.chunkId!,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
           ),
           EverydayActivity a => _activityService.updateEverydayActivity(
             id: a.id!,
             type: _type.name,
-            name: a.name,
-            date: a.date.toString(),
-            description: a.description,
+            date: a.date?.toIso8601String().split('T').first ?? '',
+            description: description,
             chunkId: widget.chunk!.chunkId!,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
           ),
         };
       } else {
-        // create the activity, set name, description, type
-        // pass activity name
-        // pass activity description
-        // if ActivityType.periodic -> select date
-        // if ActivityType.everyday -> select day of the week
-        // if ActivityType.range -> select dates
         await switch (_activity!) {
           RangeActivity a => _activityService.addRangeActivity(
             chunkId: widget.chunk!.chunkId!,
             description: description,
-            name: name,
             startDate: a.startDate,
             endDate: a.endDate,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
           ),
           PeriodicActivity a => _activityService.addPeriodicActivity(
-            name: name,
-            weekday: a.weekday.toString(),
+            weekday: a.weekday.join(','),
             description: description,
             chunkId: widget.chunk!.chunkId!,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
           ),
           EverydayActivity _ => _activityService.addEverydayActivity(
-            name: name,
             description: description,
             chunkId: widget.chunk!.chunkId!,
+            startTime: startTimeStr,
+            endTime: endTimeStr,
           ),
         };
       }
-      if (!mounted) return;
 
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Chunk saved")));
-
+      ).showSnackBar(const SnackBar(content: Text('Activity saved')));
       Navigator.of(context).pop(true);
     } catch (e, s) {
-      debugPrint("DB ERROR: $e");
+      debugPrint('DB ERROR: $e');
       debugPrintStack(stackTrace: s);
-
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final model.Chunk chunk = widget.chunk!;
+    final chunk = widget.chunk!;
+    final chunkWindow = '${chunk.startTimeStr} – ${chunk.endTimeStr}';
+
     return Scaffold(
-      appBar: AppBar(title: Text('Add Activity to ${chunk.name}')),
+      appBar: AppBar(
+        title: Text(
+          widget.isEdit
+              ? 'Editing Activity for ${chunk.name}'
+              : 'Add Activity to ${chunk.name}',
+        ),
+      ),
       body: Form(
         child: Padding(
-          padding: EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             spacing: 24.0,
             children: [
-              Text('Enter Activity Name'),
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(hintText: 'Name your activity'),
-              ),
-              Text('Enter Activity Description'),
               TextFormField(
                 controller: _descriptionController,
-                decoration: InputDecoration(hintText: 'Describe your activity'),
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  hintText:
+                      widget.isEdit
+                          ? widget.activity!.description
+                          : 'Describe your activity',
+                ),
               ),
-              Text('When to repeat?'),
+
+              // ── Time pickers ──────────────────────────────
+              Text(
+                'Activity time  ($chunkWindow)',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _TimeTile(
+                      label: 'Start',
+                      time: _startTime,
+                      onTap: () => _pickTime(isStart: true),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _TimeTile(
+                      label: 'End',
+                      time: _endTime,
+                      onTap: () => _pickTime(isStart: false),
+                    ),
+                  ),
+                ],
+              ),
+
+              // ── Repeat type ───────────────────────────────
+              Text(
+                widget.isEdit ? 'Edit when to repeat' : 'When to repeat?',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
               Wrap(
                 spacing: 8,
                 children:
                     ActivityType.values.map((type) {
                       return ChoiceChip(
                         label: Text(switch (type) {
-                          ActivityType.periodic => 'Select day(s) ',
+                          ActivityType.periodic => 'Select day(s)',
                           ActivityType.everyday => 'Everyday',
                           ActivityType.range => 'Select date(s)',
                         }),
                         selected: _type == type,
                         onSelected: (selected) {
                           if (!selected) return;
-                          setState(() {
-                            switch (type) {
-                              case ActivityType.range:
-                                _rangeDatePicker(type);
-                              case ActivityType.periodic:
-                                _periodicDatePicker(type);
-                              case ActivityType.everyday:
-                                _everydayDatePicker(type);
-                            }
-
-                            /// showDatePicker for selected type
-                          });
+                          switch (type) {
+                            case ActivityType.range:
+                              _rangeDatePicker(type);
+                            case ActivityType.periodic:
+                              _periodicDatePicker(type);
+                            case ActivityType.everyday:
+                              _everydayDatePicker(type);
+                          }
                         },
                       );
                     }).toList(),
               ),
+
               Align(
                 alignment: Alignment.center,
-                child: Wrap(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _submitActivity,
-                      icon: Icon(Icons.save),
-                      label: Text("save"),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () => {},
-                      icon: Icon(Icons.delete, color: Colors.red),
-                      label: Text("delete"),
-                    ),
-                  ],
+                child: ElevatedButton.icon(
+                  onPressed: _submitActivity,
+                  icon: const Icon(Icons.save),
+                  label: Text(widget.isEdit ? 'Update' : 'Save'),
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Time tile ────────────────────────────────────────────────────────────────
+
+class _TimeTile extends StatelessWidget {
+  final String label;
+  final TimeOfDay? time;
+  final VoidCallback onTap;
+
+  const _TimeTile({
+    required this.label,
+    required this.time,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurface.withAlpha(60),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              time != null ? time!.format(context) : '--:--',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+          ],
         ),
       ),
     );

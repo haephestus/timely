@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' as drift hide Column;
 import 'package:timely_app/models/chunk.dart' as model;
 import 'package:timely_app/utils/database/database.dart' as db;
 import 'package:day_night_time_picker/day_night_time_picker.dart';
+import 'package:timely_app/utils/database/services.dart';
 
 class ChunkManager extends StatefulWidget {
   final bool isEdit;
@@ -17,6 +18,7 @@ class ChunkManager extends StatefulWidget {
 class _ChunkManagerState extends State<ChunkManager> {
   final _nameController = TextEditingController();
   late final db.AppDb _db;
+  late final ChunkActivityService _service;
 
   model.ChunkType _type = model.ChunkType.daily;
 
@@ -27,12 +29,13 @@ class _ChunkManagerState extends State<ChunkManager> {
   void initState() {
     super.initState();
     _db = db.AppDb();
+    _service = ChunkActivityService(_db);
 
     if (widget.isEdit && widget.chunk != null) {
       final chunk = widget.chunk!;
       _nameController.text = chunk.name;
-      startTime = TimeOfDay(hour: chunk.startHour, minute: 0);
-      endTime = TimeOfDay(hour: chunk.endHour, minute: 0);
+      startTime = TimeOfDay(hour: chunk.startHour, minute: chunk.startMinute);
+      endTime = TimeOfDay(hour: chunk.endHour, minute: chunk.endMinute);
       _type = chunk.type;
     }
   }
@@ -57,7 +60,6 @@ class _ChunkManagerState extends State<ChunkManager> {
             isStart
                 ? Time(hour: startTime.hour, minute: startTime.minute)
                 : Time(hour: endTime.hour, minute: endTime.minute),
-        disableMinute: true,
         onChange: (Time newTime) {
           if (!mounted) return;
           setState(() {
@@ -91,6 +93,7 @@ class _ChunkManagerState extends State<ChunkManager> {
   }
 
   Future<void> _submitChunk() async {
+    //prevent submitting chunks of the same name and overlaping time
     final name = _nameController.text.trim();
 
     if (name.isEmpty) {
@@ -99,10 +102,28 @@ class _ChunkManagerState extends State<ChunkManager> {
       ).showSnackBar(const SnackBar(content: Text("Name is required")));
       return;
     }
+    final startMinutes = startTime.hour * 60 + startTime.minute;
+    final endMinutes = endTime.hour * 60 + endTime.minute;
 
-    if (startTime.hour >= endTime.hour) {
+    if (startMinutes >= endMinutes) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Start time must be before end time")),
+      );
+      return;
+    }
+
+    final overlapping = await _service.getOverlappingChunk(
+      startTime.hour,
+      startTime.minute,
+      endTime.hour,
+      endTime.minute,
+      excludeId: widget.isEdit ? widget.chunk?.chunkId : null,
+    );
+    if (overlapping != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Time overlaps with chunk'${overlapping.name}'"),
+        ),
       );
       return;
     }
@@ -116,7 +137,9 @@ class _ChunkManagerState extends State<ChunkManager> {
             name: drift.Value(name),
             type: drift.Value(_type.name),
             startHour: drift.Value(startTime.hour),
+            startMinute: drift.Value(startTime.minute),
             endHour: drift.Value(endTime.hour),
+            endMinute: drift.Value(endTime.minute),
           ),
         );
       } else {
@@ -127,7 +150,9 @@ class _ChunkManagerState extends State<ChunkManager> {
                 name: name,
                 type: _type.name,
                 startHour: drift.Value(startTime.hour),
+                startMinute: drift.Value(startTime.minute),
                 endHour: drift.Value(endTime.hour),
+                endMinute: drift.Value(endTime.minute),
               ),
             );
       }

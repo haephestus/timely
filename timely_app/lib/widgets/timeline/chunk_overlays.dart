@@ -29,9 +29,10 @@ class _ChunkOverlaysState extends State<ChunkOverlays> {
       child: Stack(
         children:
             widget.chunks.map((chunk) {
-              final left = chunk.startHour * HorizontalTimeline.hourWidth;
+              final left =
+                  (chunk.startTotalMinutes / 60) * HorizontalTimeline.hourWidth;
               final width =
-                  (chunk.endHour - chunk.startHour) *
+                  ((chunk.endTotalMinutes / 60) - chunk.startHour) *
                   HorizontalTimeline.hourWidth;
               final isSelected = chunk == widget.selectedChunk;
               return Positioned(

@@ -22,14 +22,14 @@ class HorizontalTimeline extends StatefulWidget {
     required this.onChunkLongPress,
   });
 
-  static const double hourWidth = 120;
-  static const double timelineHeight = 96;
+  static const double hourWidth = 120.0;
+  static const double timelineHeight = 84;
 
   @override
-  State<HorizontalTimeline> createState() => _HorizontalTimelineState();
+  HorizontalTimelineState createState() => HorizontalTimelineState();
 }
 
-class _HorizontalTimelineState extends State<HorizontalTimeline> {
+class HorizontalTimelineState extends State<HorizontalTimeline> {
   final ScrollController _scrollController = ScrollController();
 
   double _nowOffset() {
@@ -42,16 +42,20 @@ class _HorizontalTimelineState extends State<HorizontalTimeline> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToNow();
+      scrollToNow();
     });
   }
 
-  void _scrollToNow() {
-    final offset = _nowOffset() - (MediaQuery.of(context).size.width / 2);
-
-    _scrollController.jumpTo(
-      offset.clamp(0.0, _scrollController.position.maxScrollExtent),
-    );
+  void scrollToNow() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final offset = _nowOffset() - (MediaQuery.of(context).size.width / 2);
+      _scrollController.animateTo(
+        offset.clamp(0.0, _scrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   @override

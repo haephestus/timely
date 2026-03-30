@@ -13,7 +13,7 @@ class HourRail extends StatelessWidget {
           height: HorizontalTimeline.timelineHeight,
           padding: const EdgeInsets.only(top: 8, left: 6),
           decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey.shade300)),
+            border: Border(right: BorderSide(color: Colors.grey.shade400)),
           ),
           child: Text(
             '${hour.toString().padLeft(2, '0')}:00',
