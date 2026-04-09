@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:timely_app/models/chunk_activity.dart';
-import 'package:timely_app/screens/activity_manager.dart';
-import 'package:timely_app/utils/database/database.dart';
-import 'package:timely_app/models/chunk.dart' as model;
+import 'package:timely/models/chunk_activity.dart';
+import 'package:timely/screens/activity_manager.dart';
+import 'package:timely/utils/database/database.dart';
+import 'package:timely/models/chunk.dart' as model;
 
 class VerticalActivityCard extends StatefulWidget {
   final ChunkActivity? activity;
@@ -25,7 +25,7 @@ class VerticalActivityCard extends StatefulWidget {
 class _VerticalActivityCardState extends State<VerticalActivityCard> {
   double _dragOffset = 0;
   bool _isOpen = false;
-  static const double _maxDrag = 80;
+  static const double _maxDrag = 100;
   static const double _threshold = 60;
 
   ({Color bg, Color accent, String label, IconData icon}) get _scheme {
@@ -65,8 +65,9 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
   Future<void> _deleteActivity() async {
     if (widget.activity?.id == null) return;
     try {
-      await (widget.db.delete(widget.db.activities)
-        ..where((a) => a.id.equals(widget.activity!.id!))).go();
+      await (widget.db.delete(
+        widget.db.activities,
+      )..where((a) => a.id.equals(widget.activity!.id!))).go();
       widget.onDeleted?.call();
     } catch (e) {
       if (!mounted) return;
@@ -85,7 +86,9 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
       children: [
         // ── Swipe actions ─────────────────────────────────────
         Positioned.fill(
+          right: 24,
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               IconButton(
                 onPressed: _deleteActivity,
@@ -95,12 +98,11 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
                 onPressed: () async {
                   final result = await Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder:
-                          (_) => ActivityManager(
-                            chunk: widget.chunk,
-                            isEdit: true,
-                            activity: activity,
-                          ),
+                      builder: (_) => ActivityManager(
+                        chunk: widget.chunk,
+                        isEdit: true,
+                        activity: activity,
+                      ),
                     ),
                   );
                   if (result == true) widget.onDeleted?.call();
@@ -344,8 +346,9 @@ class _TimeLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           time,
@@ -358,7 +361,11 @@ class _TimeLabel extends StatelessWidget {
         if (label.isNotEmpty)
           Text(
             label,
-            style: TextStyle(fontSize: 10, color: accent.withAlpha(70)),
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.black45,
+              fontWeight: FontWeight.w600,
+            ),
           ),
       ],
     );

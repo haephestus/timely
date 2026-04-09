@@ -58,7 +58,7 @@ class _DateHeaderState extends State<DateHeader> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // ── LEFT: date block ──────────────────────────────────
-          Container(width: 32),
+          Container(width: 38),
           Expanded(
             flex: 2,
             child: Column(
@@ -69,14 +69,14 @@ class _DateHeaderState extends State<DateHeader> {
                   DateFormat('EEEE').format(widget.selectedDay),
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 13,
+                    fontSize: 18,
                     color: muted,
                   ),
                 ),
                 Text(
-                  DateFormat('d.MM').format(widget.selectedDay),
+                  DateFormat('d.yy').format(widget.selectedDay),
                   style: const TextStyle(
-                    fontSize: 48,
+                    fontSize: 56,
                     fontWeight: FontWeight.w900,
                     height: 1.0,
                   ),
@@ -95,9 +95,9 @@ class _DateHeaderState extends State<DateHeader> {
 
           // ── Divider ───────────────────────────────────────────
           Container(
-            width: 1,
+            width: 2,
             height: 100,
-            color: colorScheme.onSurface.withAlpha(20),
+            color: colorScheme.onSurface.withAlpha(60),
           ),
           Container(width: 16),
 
@@ -105,9 +105,9 @@ class _DateHeaderState extends State<DateHeader> {
           Expanded(
             flex: 1,
             child: Padding(
-              padding: const EdgeInsets.only(left: 16),
+              padding: const EdgeInsets.only(left: 12, right: 12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _TimeBlock(
@@ -126,12 +126,12 @@ class _DateHeaderState extends State<DateHeader> {
                     onPressed: widget.onTodayPressed,
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(64),
                       ),
                       backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
                     ),
-                    child: Text("Today"),
+                    child: Text("Now", style: TextStyle(fontSize: 12)),
                   ),
                 ],
               ),
@@ -163,7 +163,7 @@ class _TimeBlock extends StatelessWidget {
         Text(
           time,
           style: const TextStyle(
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: FontWeight.w600,
             height: 1.2,
           ),

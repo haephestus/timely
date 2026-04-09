@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:timely_app/models/chunk.dart';
-import 'package:timely_app/widgets/timeline/horizontal_timeline.dart';
+import 'package:timely/models/chunk.dart';
+import 'package:timely/widgets/timeline/horizontal_timeline.dart';
 
 class ChunkOverlays extends StatefulWidget {
   final List<Chunk> chunks;
@@ -32,7 +32,7 @@ class _ChunkOverlaysState extends State<ChunkOverlays> {
               final left =
                   (chunk.startTotalMinutes / 60) * HorizontalTimeline.hourWidth;
               final width =
-                  ((chunk.endTotalMinutes / 60) - chunk.startHour) *
+                  ((chunk.endTotalMinutes - chunk.startTotalMinutes) / 60) *
                   HorizontalTimeline.hourWidth;
               final isSelected = chunk == widget.selectedChunk;
               return Positioned(

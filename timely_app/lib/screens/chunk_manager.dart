@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' as drift hide Column;
-import 'package:timely_app/models/chunk.dart' as model;
-import 'package:timely_app/utils/database/database.dart' as db;
+import 'package:provider/provider.dart';
+import 'package:timely/models/chunk.dart' as model;
+import 'package:timely/utils/database/database.dart' as db;
 import 'package:day_night_time_picker/day_night_time_picker.dart';
-import 'package:timely_app/utils/database/services.dart';
+import 'package:timely/utils/database/services.dart';
+import 'package:timely/utils/notification_utils.dart';
+import 'package:timely/utils/settings_provider.dart';
 
 class ChunkManager extends StatefulWidget {
   final bool isEdit;
@@ -25,6 +28,7 @@ class _ChunkManagerState extends State<ChunkManager> {
   TimeOfDay startTime = TimeOfDay.now();
   TimeOfDay endTime = TimeOfDay.now();
 
+  Notify? notify;
   @override
   void initState() {
     super.initState();
@@ -52,14 +56,17 @@ class _ChunkManagerState extends State<ChunkManager> {
     return "$hour:$minute";
   }
 
-  Future<void> _pickTime({required bool isStart}) async {
+  Future<void> _pickTime({
+    required bool isStart,
+    required bool timeFormat,
+  }) async {
     Navigator.of(context).push(
       showPicker(
         context: context,
-        value:
-            isStart
-                ? Time(hour: startTime.hour, minute: startTime.minute)
-                : Time(hour: endTime.hour, minute: endTime.minute),
+        is24HrFormat: timeFormat,
+        value: isStart
+            ? Time(hour: startTime.hour, minute: startTime.minute)
+            : Time(hour: endTime.hour, minute: endTime.minute),
         onChange: (Time newTime) {
           if (!mounted) return;
           setState(() {
@@ -79,8 +86,9 @@ class _ChunkManagerState extends State<ChunkManager> {
     if (widget.chunk?.chunkId == null) return;
 
     try {
-      await (_db.delete(_db.chunks)
-        ..where((c) => c.id.equals(widget.chunk!.chunkId!))).go();
+      await (_db.delete(
+        _db.chunks,
+      )..where((c) => c.id.equals(widget.chunk!.chunkId!))).go();
 
       debugPrint("Deleting chunk with id: ${widget.chunk!.chunkId}");
       if (!mounted) return;
@@ -120,6 +128,7 @@ class _ChunkManagerState extends State<ChunkManager> {
       excludeId: widget.isEdit ? widget.chunk?.chunkId : null,
     );
     if (overlapping != null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Time overlaps with chunk'${overlapping.name}'"),
@@ -131,8 +140,9 @@ class _ChunkManagerState extends State<ChunkManager> {
     try {
       //update in ChunksCompanion
       if (widget.isEdit && widget.chunk != null) {
-        await (_db.update(_db.chunks)
-          ..where((c) => c.id.equals(widget.chunk!.chunkId!))).write(
+        await (_db.update(
+          _db.chunks,
+        )..where((c) => c.id.equals(widget.chunk!.chunkId!))).write(
           db.ChunksCompanion(
             name: drift.Value(name),
             type: drift.Value(_type.name),
@@ -141,6 +151,13 @@ class _ChunkManagerState extends State<ChunkManager> {
             endHour: drift.Value(endTime.hour),
             endMinute: drift.Value(endTime.minute),
           ),
+        );
+        // update alarm
+        await notify!.set(
+          widget.chunk!.chunkId,
+          widget.chunk!.name,
+          widget.chunk!.startHour,
+          widget.chunk!.startMinute,
         );
       } else {
         await _db
@@ -155,6 +172,7 @@ class _ChunkManagerState extends State<ChunkManager> {
                 endMinute: drift.Value(endTime.minute),
               ),
             );
+        // create alarm
       }
 
       if (!mounted) return;
@@ -168,6 +186,7 @@ class _ChunkManagerState extends State<ChunkManager> {
       debugPrint("DB ERROR: $e");
       debugPrintStack(stackTrace: s);
 
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));
@@ -176,6 +195,7 @@ class _ChunkManagerState extends State<ChunkManager> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isEdit ? 'Edit Chunk' : 'Create Chunk'),
@@ -210,7 +230,10 @@ class _ChunkManagerState extends State<ChunkManager> {
                     child: _TimeSelector(
                       label: "Start",
                       time: _formatTime(startTime),
-                      onTap: () => _pickTime(isStart: true),
+                      onTap: () => _pickTime(
+                        isStart: true,
+                        timeFormat: settings.is24HourFormat,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -218,7 +241,10 @@ class _ChunkManagerState extends State<ChunkManager> {
                     child: _TimeSelector(
                       label: "End",
                       time: _formatTime(endTime),
-                      onTap: () => _pickTime(isStart: false),
+                      onTap: () => _pickTime(
+                        isStart: false,
+                        timeFormat: settings.is24HourFormat,
+                      ),
                     ),
                   ),
                 ],
@@ -231,20 +257,19 @@ class _ChunkManagerState extends State<ChunkManager> {
               const SizedBox(height: 12),
               Wrap(
                 spacing: 12,
-                children:
-                    model.ChunkType.values.map((type) {
-                      return ChoiceChip(
-                        label: Text(
-                          type == model.ChunkType.daily ? 'Daily' : 'Sporadic',
-                        ),
-                        selected: _type == type,
-                        onSelected: (selected) {
-                          if (selected) {
-                            setState(() => _type = type);
-                          }
-                        },
-                      );
-                    }).toList(),
+                children: model.ChunkType.values.map((type) {
+                  return ChoiceChip(
+                    label: Text(
+                      type == model.ChunkType.daily ? 'Daily' : 'Sporadic',
+                    ),
+                    selected: _type == type,
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(() => _type = type);
+                      }
+                    },
+                  );
+                }).toList(),
               ),
               const Spacer(),
               Align(

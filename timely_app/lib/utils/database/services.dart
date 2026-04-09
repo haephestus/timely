@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
-import 'package:timely_app/models/chunk_activity.dart';
-import 'package:timely_app/utils/calendar_utils.dart';
-import 'package:timely_app/utils/database/database.dart' as db;
+import 'package:timely/models/chunk_activity.dart';
+import 'package:timely/utils/calendar_utils.dart';
+import 'package:timely/utils/database/database.dart' as db;
 
 class ChunkActivityService {
   final db.AppDb database;

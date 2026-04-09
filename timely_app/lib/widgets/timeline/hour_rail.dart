@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:timely_app/widgets/timeline/horizontal_timeline.dart';
+import 'package:timely/widgets/timeline/horizontal_timeline.dart';
 
 class HourRail extends StatelessWidget {
   const HourRail({super.key});

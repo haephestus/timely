@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:timely_app/models/chunk_activity.dart';
-import 'package:timely_app/models/chunk.dart';
-import 'package:timely_app/screens/activity_manager.dart';
-import 'package:timely_app/utils/database/database.dart' as database;
-import 'package:timely_app/widgets/activity/vertical_activity_card.dart';
-import 'package:timely_app/widgets/activity/horizontal_activity_card.dart';
+import 'package:timely/models/chunk_activity.dart';
+import 'package:timely/models/chunk.dart';
+import 'package:timely/screens/activity_manager.dart';
+import 'package:timely/utils/database/database.dart' as database;
+import 'package:timely/widgets/activity/vertical_activity_card.dart';
+import 'package:timely/widgets/activity/horizontal_activity_card.dart';
 
 class ActivityWidget extends StatelessWidget {
   final Chunk? chunk;
@@ -53,8 +53,8 @@ class ActivityWidget extends StatelessWidget {
                 if (chunk != null) {
                   final result = await Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder:
-                          (_) => ActivityManager(chunk: chunk!, isEdit: false),
+                      builder: (_) =>
+                          ActivityManager(chunk: chunk!, isEdit: false),
                     ),
                   );
                   if (result == true) {
@@ -79,17 +79,12 @@ class ActivityWidget extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(left: 10, right: 10),
                 child: ShaderMask(
-                  shaderCallback:
-                      (rect) => LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white,
-                          Colors.white,
-                          Colors.transparent,
-                        ],
-                        stops: const [0.15, 0.85, 1.0],
-                      ).createShader(rect),
+                  shaderCallback: (rect) => LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.white, Colors.white, Colors.transparent],
+                    stops: const [0.15, 0.85, 1.0],
+                  ).createShader(rect),
                   blendMode: BlendMode.dstIn,
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(vertical: 24),

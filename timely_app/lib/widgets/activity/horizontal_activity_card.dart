@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:timely_app/models/chunk_activity.dart';
-import 'package:timely_app/screens/activity_manager.dart';
-import 'package:timely_app/utils/database/database.dart';
-import 'package:timely_app/models/chunk.dart' as model;
+import 'package:timely/models/chunk_activity.dart';
+import 'package:timely/screens/activity_manager.dart';
+import 'package:timely/utils/database/database.dart';
+import 'package:timely/models/chunk.dart' as model;
 
 // ── Fade list wrapper ────────────────────────────────────────────────────────
 

@@ -1,13 +1,15 @@
 // activity_manager.dart
 
 import 'package:flutter/material.dart';
-import 'package:timely_app/models/chunk_activity.dart';
-import 'package:timely_app/models/chunk.dart' as model;
-import 'package:timely_app/utils/calendar_utils.dart' as cal;
-import 'package:timely_app/utils/database/database.dart';
-import 'package:timely_app/utils/database/services.dart';
+import 'package:provider/provider.dart';
+import 'package:timely/models/chunk_activity.dart';
+import 'package:timely/models/chunk.dart' as model;
+import 'package:timely/utils/calendar_utils.dart' as cal;
+import 'package:timely/utils/database/database.dart';
+import 'package:timely/utils/database/services.dart';
 import 'package:day_picker/day_picker.dart';
 import 'package:day_night_time_picker/day_night_time_picker.dart';
+import 'package:timely/utils/settings_provider.dart';
 
 class ActivityManager extends StatefulWidget {
   final model.Chunk? chunk;
@@ -91,16 +93,19 @@ class _ActivityManagerState extends State<ActivityManager> {
   String _formatTime(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
-  Future<void> _pickTime({required bool isStart}) async {
+  Future<void> _pickTime({
+    required bool isStart,
+    required bool timeFormat,
+  }) async {
     final chunk = widget.chunk;
-    final initial =
-        isStart
-            ? (_startTime ?? TimeOfDay(hour: chunk?.startHour ?? 8, minute: 0))
-            : (_endTime ?? TimeOfDay(hour: chunk?.endHour ?? 9, minute: 0));
+    final initial = isStart
+        ? (_startTime ?? TimeOfDay(hour: chunk?.startHour ?? 8, minute: 0))
+        : (_endTime ?? TimeOfDay(hour: chunk?.endHour ?? 9, minute: 0));
 
     Navigator.of(context).push(
       showPicker(
         context: context,
+        is24HrFormat: timeFormat,
         value: Time(hour: initial.hour, minute: initial.minute),
         minHour: (chunk?.startHour ?? 0).toDouble(),
         maxHour: (chunk?.endHour ?? 24).toDouble(),
@@ -198,31 +203,30 @@ class _ActivityManagerState extends State<ActivityManager> {
 
     await showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Repeat on'),
-            content: SelectWeekDays(
-              days: days,
-              border: false,
-              boxDecoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              selectedDaysFillColor: Theme.of(context).colorScheme.primary,
-              selectedDayTextColor: Theme.of(context).colorScheme.onPrimary,
-              onSelect: (values) => selectedDays = values,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Done'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Repeat on'),
+        content: SelectWeekDays(
+          days: days,
+          border: false,
+          boxDecoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(30),
           ),
+          selectedDaysFillColor: Theme.of(context).colorScheme.primary,
+          selectedDayTextColor: Theme.of(context).colorScheme.onPrimary,
+          onSelect: (values) => selectedDays = values,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
     );
 
     if (selectedDays.isNotEmpty) {
@@ -349,6 +353,7 @@ class _ActivityManagerState extends State<ActivityManager> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
     final chunk = widget.chunk!;
     final chunkWindow = '${chunk.startTimeStr} – ${chunk.endTimeStr}';
 
@@ -370,10 +375,9 @@ class _ActivityManagerState extends State<ActivityManager> {
                 controller: _descriptionController,
                 decoration: InputDecoration(
                   labelText: 'Description',
-                  hintText:
-                      widget.isEdit
-                          ? widget.activity!.description
-                          : 'Describe your activity',
+                  hintText: widget.isEdit
+                      ? widget.activity!.description
+                      : 'Describe your activity',
                 ),
               ),
 
@@ -388,7 +392,10 @@ class _ActivityManagerState extends State<ActivityManager> {
                     child: _TimeTile(
                       label: 'Start',
                       time: _startTime,
-                      onTap: () => _pickTime(isStart: true),
+                      onTap: () => _pickTime(
+                        isStart: true,
+                        timeFormat: settings.is24HourFormat,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -396,7 +403,10 @@ class _ActivityManagerState extends State<ActivityManager> {
                     child: _TimeTile(
                       label: 'End',
                       time: _endTime,
-                      onTap: () => _pickTime(isStart: false),
+                      onTap: () => _pickTime(
+                        isStart: false,
+                        timeFormat: settings.is24HourFormat,
+                      ),
                     ),
                   ),
                 ],
@@ -409,28 +419,27 @@ class _ActivityManagerState extends State<ActivityManager> {
               ),
               Wrap(
                 spacing: 8,
-                children:
-                    ActivityType.values.map((type) {
-                      return ChoiceChip(
-                        label: Text(switch (type) {
-                          ActivityType.periodic => 'Select day(s)',
-                          ActivityType.everyday => 'Everyday',
-                          ActivityType.range => 'Select date(s)',
-                        }),
-                        selected: _type == type,
-                        onSelected: (selected) {
-                          if (!selected) return;
-                          switch (type) {
-                            case ActivityType.range:
-                              _rangeDatePicker(type);
-                            case ActivityType.periodic:
-                              _periodicDatePicker(type);
-                            case ActivityType.everyday:
-                              _everydayDatePicker(type);
-                          }
-                        },
-                      );
-                    }).toList(),
+                children: ActivityType.values.map((type) {
+                  return ChoiceChip(
+                    label: Text(switch (type) {
+                      ActivityType.periodic => 'Select day(s)',
+                      ActivityType.everyday => 'Everyday',
+                      ActivityType.range => 'Select date(s)',
+                    }),
+                    selected: _type == type,
+                    onSelected: (selected) {
+                      if (!selected) return;
+                      switch (type) {
+                        case ActivityType.range:
+                          _rangeDatePicker(type);
+                        case ActivityType.periodic:
+                          _periodicDatePicker(type);
+                        case ActivityType.everyday:
+                          _everydayDatePicker(type);
+                      }
+                    },
+                  );
+                }).toList(),
               ),
 
               Align(

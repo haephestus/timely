@@ -1,10 +1,10 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:timely_app/models/chunk.dart';
-import 'package:timely_app/widgets/timeline/hour_rail.dart';
-import 'package:timely_app/widgets/timeline/chunk_overlays.dart';
-import 'package:timely_app/widgets/timeline/now_indicator.dart';
+import 'package:timely/models/chunk.dart';
+import 'package:timely/widgets/timeline/hour_rail.dart';
+import 'package:timely/widgets/timeline/chunk_overlays.dart';
+import 'package:timely/widgets/timeline/now_indicator.dart';
 
 class HorizontalTimeline extends StatefulWidget {
   final List<Chunk> chunks;

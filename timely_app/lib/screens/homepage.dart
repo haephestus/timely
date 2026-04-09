@@ -1,28 +1,31 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:timely/utils/settings_provider.dart';
+import 'package:provider/provider.dart';
 
-import 'package:timely_app/models/chunk.dart' as model;
-import 'package:timely_app/models/chunk_activity.dart';
-import 'package:timely_app/screens/chunk_manager.dart';
-import 'package:timely_app/utils/database/database.dart' as db;
+import 'package:timely/models/chunk.dart' as model;
+import 'package:timely/models/chunk_activity.dart';
+import 'package:timely/screens/chunk_manager.dart';
+import 'package:timely/utils/database/database.dart' as db;
 
-import 'package:timely_app/widgets/date_header.dart';
-import 'package:timely_app/widgets/navbar.dart';
-import 'package:timely_app/widgets/timeline/horizontal_timeline.dart';
-import 'package:timely_app/widgets/activity/activities_widget.dart';
+import 'package:timely/widgets/date_header.dart';
+import 'package:timely/widgets/timeline/horizontal_timeline.dart';
+import 'package:timely/widgets/activity/activities_widget.dart';
 
-import 'package:timely_app/utils/database/services.dart' as service;
-import 'package:timely_app/utils/calendar_utils.dart';
+import 'package:timely/utils/database/services.dart' as service;
+import 'package:timely/utils/calendar_utils.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final ValueChanged<model.Chunk?>? onChunkSelected;
+  final ValueChanged<model.Chunk?>? onChunkAdded;
+  const HomePage({this.onChunkSelected, this.onChunkAdded, super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   final CalendarFormat _calendarFormat = CalendarFormat.week;
   final GlobalKey<HorizontalTimelineState> _timelineKey = GlobalKey();
   DateTime _focusedDay = DateTime.now();
@@ -40,7 +43,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _database = db.AppDb();
     _service = service.ChunkActivityService(_database);
-    _loadChunks();
+    loadChunks();
   }
 
   model.Chunk? _getChunkForNow() {
@@ -54,30 +57,29 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _loadChunks() async {
+  Future<void> loadChunks() async {
     final dbChunks = await _service.getAllChunks();
     if (!mounted) return;
 
-    final mappedChunks =
-        dbChunks.map((c) {
-          return model.Chunk(
-            chunkId: c.id ?? 0,
-            name: c.name,
-            type:
-                c.type == 'daily'
-                    ? model.ChunkType.daily
-                    : model.ChunkType.periodic,
-            startHour: c.startHour ?? 0,
-            startMinute: c.startMinute, // new
-            endHour: c.endHour ?? 0,
-            endMinute: c.endMinute, // new
-            isActive: c.isActive == 1,
-          );
-        }).toList();
+    final mappedChunks = dbChunks.map((c) {
+      return model.Chunk(
+        chunkId: c.id ?? 0,
+        name: c.name,
+        type: c.type == 'daily'
+            ? model.ChunkType.daily
+            : model.ChunkType.periodic,
+        startHour: c.startHour ?? 0,
+        startMinute: c.startMinute, // new
+        endHour: c.endHour ?? 0,
+        endMinute: c.endMinute, // new
+        isActive: c.isActive == 1,
+      );
+    }).toList();
     setState(() {
       _chunks = mappedChunks;
       _selectedChunk = null;
     });
+    widget.onChunkSelected?.call(null);
 
     if (_selectedChunk != null) {
       await _loadChunkActivities(_selectedChunk!.chunkId!);
@@ -102,6 +104,7 @@ class _HomePageState extends State<HomePage> {
       _selectedDay = now;
       _selectedChunk = _getChunkForNow();
     });
+    widget.onChunkSelected?.call(_selectedChunk);
     if (_selectedChunk != null) {
       _loadChunkActivities(_selectedChunk!.chunkId!);
     }
@@ -113,13 +116,15 @@ class _HomePageState extends State<HomePage> {
       MaterialPageRoute(builder: (_) => const ChunkManager(isEdit: false)),
     );
     if (result == true) {
-      await _loadChunks();
+      await loadChunks();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
     return Scaffold(
+      backgroundColor: Colors.grey.shade300,
       body: SafeArea(
         child: Stack(
           children: [
@@ -128,7 +133,6 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 children: [
                   SizedBox(
-                    height: 331,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -147,22 +151,25 @@ class _HomePageState extends State<HomePage> {
                                   final next = _focusedDay.add(
                                     const Duration(days: 7),
                                   );
-                                  _focusedDay =
-                                      next.isAfter(kLastDay) ? kLastDay : next;
+                                  _focusedDay = next.isAfter(kLastDay)
+                                      ? kLastDay
+                                      : next;
                                 } else {
                                   final previous = _focusedDay.subtract(
                                     const Duration(days: 7),
                                   );
-                                  _focusedDay =
-                                      previous.isBefore(kFirstDay)
-                                          ? kFirstDay
-                                          : previous;
+                                  _focusedDay = previous.isBefore(kFirstDay)
+                                      ? kFirstDay
+                                      : previous;
                                 }
                               }
                             });
                           },
                           child: TableCalendar(
+                            //replace this with a setting
+                            startingDayOfWeek: settings.weekStart,
                             daysOfWeekVisible: false,
+                            weekNumbersVisible: true,
                             headerVisible: false,
                             rowHeight: 48,
                             availableCalendarFormats: const {
@@ -174,17 +181,17 @@ class _HomePageState extends State<HomePage> {
                             focusedDay: _focusedDay,
                             firstDay: kFirstDay,
                             lastDay: kLastDay,
-                            selectedDayPredicate:
-                                (day) => isSameDay(_selectedDay, day),
+                            selectedDayPredicate: (day) =>
+                                isSameDay(_selectedDay, day),
                             onDaySelected: (selectedDay, focusedDay) {
                               setState(() {
                                 _selectedDay = selectedDay;
                                 _focusedDay = focusedDay;
-                                _selectedChunk =
-                                    _chunks.isNotEmpty
-                                        ? _getChunkForNow()
-                                        : null;
+                                _selectedChunk = _chunks.isNotEmpty
+                                    ? _getChunkForNow()
+                                    : null;
                               });
+                              widget.onChunkSelected?.call(_selectedChunk);
                               if (_selectedChunk != null) {
                                 _loadChunkActivities(_selectedChunk!.chunkId!);
                               }
@@ -198,38 +205,39 @@ class _HomePageState extends State<HomePage> {
                         /// HORIZONTAL DAY TIMELINE
                         _chunks.isEmpty
                             ? Center(
-                              child: TextButton.icon(
-                                label: const Text("Create your first chunk"),
-                                onPressed: _openChunkManager,
-                                icon: const Icon(Icons.add),
-                              ),
-                            )
+                                child: TextButton.icon(
+                                  label: const Text("Create your first chunk"),
+                                  onPressed: _openChunkManager,
+                                  icon: const Icon(Icons.add),
+                                ),
+                              )
                             : HorizontalTimeline(
-                              key: _timelineKey,
-                              chunks: _chunks,
-                              selectedChunk: _selectedChunk,
-                              onChunkSelected: (chunk) async {
-                                setState(() {
-                                  _selectedChunk = chunk;
-                                });
-                                await _loadChunkActivities(chunk.chunkId!);
-                              },
-                              onLongPress: _openChunkManager,
-                              onChunkLongPress: (chunk) async {
-                                final result = await Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder:
-                                        (_) => ChunkManager(
-                                          isEdit: true,
-                                          chunk: chunk,
+                                key: _timelineKey,
+                                chunks: _chunks,
+                                selectedChunk: _selectedChunk,
+                                onChunkSelected: (chunk) async {
+                                  setState(() {
+                                    _selectedChunk = chunk;
+                                  });
+                                  widget.onChunkSelected?.call(chunk);
+                                  await _loadChunkActivities(chunk.chunkId!);
+                                },
+                                onLongPress: _openChunkManager,
+                                onChunkLongPress: (chunk) async {
+                                  final result = await Navigator.of(context)
+                                      .push(
+                                        MaterialPageRoute(
+                                          builder: (_) => ChunkManager(
+                                            isEdit: true,
+                                            chunk: chunk,
+                                          ),
                                         ),
-                                  ),
-                                );
-                                if (result == true && mounted) {
-                                  await _loadChunks();
-                                }
-                              },
-                            ),
+                                      );
+                                  if (result == true && mounted) {
+                                    await loadChunks();
+                                  }
+                                },
+                              ),
                       ],
                     ),
                   ),
@@ -240,11 +248,9 @@ class _HomePageState extends State<HomePage> {
                       db: _database,
                       chunk: _selectedChunk,
                       activities: _activities,
-                      onActivityChanged:
-                          _selectedChunk != null
-                              ? () =>
-                                  _loadChunkActivities(_selectedChunk!.chunkId!)
-                              : null,
+                      onActivityChanged: _selectedChunk != null
+                          ? () => _loadChunkActivities(_selectedChunk!.chunkId!)
+                          : null,
                     ),
                   ),
                 ],
@@ -252,12 +258,6 @@ class _HomePageState extends State<HomePage> {
             ),
 
             // Custom Nav bar
-            Navbar(
-              items: [
-                NavItem(name: "Home", icon: Icons.home_outlined),
-                NavItem(name: "Settings", icon: Icons.settings),
-              ],
-            ),
           ],
         ),
       ),
