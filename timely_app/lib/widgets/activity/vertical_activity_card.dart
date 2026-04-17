@@ -1,8 +1,11 @@
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:timely/models/chunk_activity.dart';
 import 'package:timely/screens/activity_manager.dart';
 import 'package:timely/utils/database/database.dart';
 import 'package:timely/models/chunk.dart' as model;
+import 'package:timely/utils/settings_provider.dart';
 
 class VerticalActivityCard extends StatefulWidget {
   final ChunkActivity? activity;
@@ -25,8 +28,8 @@ class VerticalActivityCard extends StatefulWidget {
 class _VerticalActivityCardState extends State<VerticalActivityCard> {
   double _dragOffset = 0;
   bool _isOpen = false;
-  static const double _maxDrag = 100;
-  static const double _threshold = 60;
+  static const double _maxDrag = 90;
+  static const double _threshold = 70;
 
   ({Color bg, Color accent, String label, IconData icon}) get _scheme {
     return switch (widget.activity!) {
@@ -77,39 +80,90 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
     }
   }
 
+  Future<void> _bulkDeleteActivity() async {
+    await (widget.db.delete(widget.db.activities)..where(
+          (a) =>
+              a.description.equals(widget.activity!.description) &
+              a.chunkId.equals(widget.chunk.chunkId!),
+        ))
+        .go();
+    widget.onDeleted?.call();
+  }
+
+  Future<void> _showDeleteOptions() async {
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete activity?'),
+        content: const Text(
+          'Do you want to delete just this occurrence or all occurrences of this activity?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteActivity();
+            },
+            child: const Text('This one'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _bulkDeleteActivity();
+            },
+            child: const Text('All', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
     final s = _scheme;
     final activity = widget.activity!;
-
+    // free up activity time slot when an activity is marked as completed
     return Stack(
       children: [
         // ── Swipe actions ─────────────────────────────────────
         Positioned.fill(
           right: 24,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              IconButton(
-                onPressed: _deleteActivity,
-                icon: const Icon(Icons.delete, color: Colors.red),
-              ),
-              IconButton(
-                onPressed: () async {
-                  final result = await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ActivityManager(
-                        chunk: widget.chunk,
-                        isEdit: true,
-                        activity: activity,
+          top: 6,
+          bottom: 6,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadiusGeometry.circular(16),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                IconButton(
+                  onPressed: _showDeleteOptions,
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    final result = await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ActivityManager(
+                          chunk: widget.chunk,
+                          isEdit: true,
+                          activity: activity,
+                        ),
                       ),
-                    ),
-                  );
-                  if (result == true) widget.onDeleted?.call();
-                },
-                icon: const Icon(Icons.edit, color: Colors.blue),
-              ),
-            ],
+                    );
+                    if (result == true) widget.onDeleted?.call();
+                  },
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                ),
+              ],
+            ),
           ),
         ),
 
@@ -146,16 +200,16 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
             offset: Offset(-_dragOffset, 0),
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 6),
-              height: 156,
+              height: 140,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: s.bg,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // ── LEFT COLUMN: description + type icon ────
+                  // ── LEFT COLUMN: description + frequency icon ────
                   Expanded(
                     flex: 3,
                     child: Column(
@@ -197,7 +251,7 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
                   // ── Vertical divider ────────────────────────
                   Container(
                     width: 2,
-                    height: 80,
+                    height: 100,
                     margin: const EdgeInsets.symmetric(horizontal: 14),
                     color: Colors.black26,
                   ),
@@ -206,6 +260,7 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
                   Expanded(
                     flex: 2,
                     child: _TimeColumn(
+                      is24HourFormat: settings.is24HourFormat,
                       accent: s.accent,
                       activity: activity,
                       startTime: _parseTime(activity.startTime),
@@ -229,12 +284,14 @@ class _TimeColumn extends StatelessWidget {
   final ChunkActivity activity;
   final DateTime? startTime;
   final DateTime? endTime;
+  final bool is24HourFormat;
 
   const _TimeColumn({
     required this.accent,
     required this.activity,
     required this.startTime,
     required this.endTime,
+    required this.is24HourFormat,
   });
 
   bool get _isActive {
@@ -264,8 +321,16 @@ class _TimeColumn extends StatelessWidget {
 
   String _fmt(DateTime? t) {
     if (t == null) return '--:--';
-    return '${t.hour.toString().padLeft(2, '0')}:'
-        '${t.minute.toString().padLeft(2, '0')}';
+    if (is24HourFormat) {
+      return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    }
+    final hour = t.hour == 0
+        ? 12
+        : t.hour > 12
+        ? t.hour - 12
+        : t.hour;
+    final period = t.hour >= 12 ? 'PM' : 'AM';
+    return '${hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')} $period';
   }
 
   @override
@@ -353,7 +418,7 @@ class _TimeLabel extends StatelessWidget {
         Text(
           time,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 11,
             fontWeight: FontWeight.w700,
             color: Colors.black,
           ),

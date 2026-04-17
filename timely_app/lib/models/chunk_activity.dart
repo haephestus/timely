@@ -1,18 +1,20 @@
 // chunk_activity.dart
 
-enum ActivityType { everyday, periodic, range }
+enum Frequency { everyday, weekly, seasonal }
 
 sealed class ChunkActivity {
   final int? id;
-  final ActivityType type;
+  final int? chunkId;
+  final Frequency frequency;
   final String description;
   final bool completed;
   final String? startTime; // 'HH:MM'
   final String? endTime; // 'HH:MM'
 
   ChunkActivity({
-    this.id,
-    required this.type,
+    required this.id,
+    required this.chunkId,
+    required this.frequency,
     required this.description,
     this.completed = false,
     this.startTime,
@@ -25,12 +27,13 @@ final class EverydayActivity extends ChunkActivity {
 
   EverydayActivity({
     super.id,
+    super.chunkId,
     this.date,
     super.completed = false,
     required super.description,
     super.startTime,
     super.endTime,
-  }) : super(type: ActivityType.everyday);
+  }) : super(frequency: Frequency.everyday);
 }
 
 final class PeriodicActivity extends ChunkActivity {
@@ -38,12 +41,13 @@ final class PeriodicActivity extends ChunkActivity {
 
   PeriodicActivity({
     super.id,
+    super.chunkId,
     required this.weekday,
     super.completed = false,
     required super.description,
     super.startTime,
     super.endTime,
-  }) : super(type: ActivityType.periodic);
+  }) : super(frequency: Frequency.weekly);
 }
 
 final class RangeActivity extends ChunkActivity {
@@ -52,6 +56,7 @@ final class RangeActivity extends ChunkActivity {
 
   RangeActivity({
     super.id,
+    super.chunkId,
     required this.endDate,
     required this.startDate,
     super.completed = false,
@@ -62,5 +67,5 @@ final class RangeActivity extends ChunkActivity {
          !endDate.isBefore(startDate),
          'endDate must be on or after startDate',
        ),
-       super(type: ActivityType.range);
+       super(frequency: Frequency.seasonal);
 }

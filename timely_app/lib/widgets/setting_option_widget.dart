@@ -99,6 +99,7 @@ class _ChoiceSettingItemState extends State<ChoiceSettingItem> {
           Wrap(
             children: List<Widget>.generate(widget.choices.length, (int index) {
               return ChoiceChip(
+                showCheckmark: false,
                 selectedColor: Colors.red,
                 disabledColor: Colors.grey.shade400,
                 label: Text(widget.choices[index].toString()),

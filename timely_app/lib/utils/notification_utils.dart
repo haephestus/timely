@@ -1,17 +1,29 @@
 import 'package:alarm/alarm.dart';
+import 'package:timely/models/chunk.dart';
 
 class Notify {
-  Future<void> set(id, name, startHour, startMinute) async {
+  // TODO: schedule multiple alarms
+  // schedule alarms according to chunkfrequency
+  // pass a list of all chunks from chunk service.getAllChunks
+  // map dbChunks to chunk models
+  // get upcoming chunks and schedule alarms for upcoming chunks (todays chunks)
+
+  Future<void> _set(id, name, startHour, startMinute) async {
+    var scheduleDate = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+      startHour,
+      startMinute,
+    );
+
+    if (scheduleDate.isBefore(DateTime.now())) {
+      scheduleDate = scheduleDate.add(const Duration(days: 1));
+    }
     await Alarm.set(
       alarmSettings: AlarmSettings(
         id: id,
-        dateTime: DateTime(
-          DateTime.now().year,
-          DateTime.now().month,
-          DateTime.now().day,
-          startHour,
-          startMinute,
-        ),
+        dateTime: scheduleDate,
         assetAudioPath: 'assets/alarm.mp3',
         loopAudio: false,
         vibrate: true,
@@ -27,5 +39,11 @@ class Notify {
 
   Future<void> stop(id) async {
     await Alarm.stop(id);
+  }
+
+  Future<void> scheduledToday(List<Chunk> chunks) async {
+    for (final chunk in chunks) {
+      await _set(chunk.chunkId, chunk.name, chunk.startHour, chunk.startMinute);
+    }
   }
 }

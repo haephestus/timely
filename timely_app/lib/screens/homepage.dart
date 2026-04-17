@@ -4,10 +4,12 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:timely/utils/settings_provider.dart';
 import 'package:provider/provider.dart';
 
+import 'package:timely/utils/notification_utils.dart';
 import 'package:timely/models/chunk.dart' as model;
 import 'package:timely/models/chunk_activity.dart';
 import 'package:timely/screens/chunk_manager.dart';
 import 'package:timely/utils/database/database.dart' as db;
+import 'package:alarm/alarm.dart';
 
 import 'package:timely/widgets/date_header.dart';
 import 'package:timely/widgets/timeline/horizontal_timeline.dart';
@@ -31,8 +33,11 @@ class HomePageState extends State<HomePage> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
 
+  Notify notify = Notify();
+
   late final db.AppDb _database;
   late final service.ChunkActivityService _service;
+  late SettingsProvider settings;
 
   List<model.Chunk> _chunks = [];
   model.Chunk? _selectedChunk;
@@ -57,36 +62,158 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> loadChunks() async {
-    final dbChunks = await _service.getAllChunks();
+  Future<void> _showUpcomingAlarms() async {
+    final alarms = await Alarm.getAlarms();
+    final now = DateTime.now();
+
+    // just filter for future alarms, no day restriction
+    final upcomingAlarms = alarms.where((a) => a.dateTime.isAfter(now)).toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+    debugPrint('Upcoming alarms: ${upcomingAlarms.length}');
+
     if (!mounted) return;
 
-    final mappedChunks = dbChunks.map((c) {
-      return model.Chunk(
-        chunkId: c.id ?? 0,
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          "Upcoming Alarms",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+        content: upcomingAlarms.isEmpty
+            ? const Text('No upcoming alarms')
+            : SizedBox(
+                width: double.maxFinite,
+                child: ListView(
+                  shrinkWrap: true,
+                  children: upcomingAlarms.map((alarm) {
+                    final timeStr = settings.is24HourFormat
+                        ? '${alarm.dateTime.hour.toString().padLeft(2, '0')}:${alarm.dateTime.minute.toString().padLeft(2, '0')}'
+                        : TimeOfDay(
+                            hour: alarm.dateTime.hour,
+                            minute: alarm.dateTime.minute,
+                          ).format(context);
+
+                    // show date if it's not today
+                    final isToday =
+                        alarm.dateTime.day == now.day &&
+                        alarm.dateTime.month == now.month &&
+                        alarm.dateTime.year == now.year;
+                    final subtitle = isToday
+                        ? timeStr
+                        : '${alarm.dateTime.day}/${alarm.dateTime.month} $timeStr';
+
+                    return ListTile(
+                      leading: const Icon(Icons.alarm),
+                      title: Text(alarm.notificationSettings.title),
+                      subtitle: Text(subtitle),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: () async {
+                          await Alarm.stop(alarm.id);
+                          if (!mounted) return;
+                          Navigator.pop(context);
+                          _showUpcomingAlarms();
+                        },
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> loadChunks({bool tomorrow = false}) async {
+    final dateStr = _selectedDay.toIso8601String().split('T').first;
+    final dbChunks = await _service.getTodaysChunks(dateStr);
+
+    if (!mounted) return;
+
+    final mappedChunks = dbChunks.map<model.Chunk>((c) {
+      final base = (
+        chunkId: c.id,
         name: c.name,
-        type: c.type == 'daily'
-            ? model.ChunkType.daily
-            : model.ChunkType.periodic,
-        startHour: c.startHour ?? 0,
-        startMinute: c.startMinute, // new
-        endHour: c.endHour ?? 0,
-        endMinute: c.endMinute, // new
         isActive: c.isActive == 1,
+        startHour: c.startHour ?? 0,
+        startMinute: c.startMinute ?? 0,
+        endHour: c.endHour ?? 0,
+        endMinute: c.endMinute ?? 0,
+        category: model.mapCategory(c.category),
       );
+
+      return switch (c.frequency) {
+        'weekly' => model.ScheduledChunk(
+          name: base.name,
+          chunkId: base.chunkId,
+          isActive: base.isActive,
+          startHour: base.startHour,
+          startMinute: base.startMinute,
+          endHour: base.endHour,
+          endMinute: base.endMinute,
+          category: base.category,
+          selectedDays: c.selectedDays?.split(',') ?? [],
+        ),
+        'seasonal' => () {
+          final parts = (c.date ?? '|').split('|');
+          return model.SeasonalChunk(
+            name: base.name,
+            chunkId: base.chunkId,
+            isActive: base.isActive,
+            startHour: base.startHour,
+            startMinute: base.startMinute,
+            endHour: base.endHour,
+            endMinute: base.endMinute,
+            category: base.category,
+            startDate: parts.elementAtOrNull(0) ?? '',
+            endDate: parts.elementAtOrNull(1) ?? '',
+          );
+        }(),
+        'onceoff' => model.OnceChunk(
+          name: base.name,
+          chunkId: base.chunkId,
+          isActive: base.isActive,
+          startHour: base.startHour,
+          startMinute: base.startMinute,
+          endHour: base.endHour,
+          endMinute: base.endMinute,
+          category: base.category,
+          date: c.date,
+        ),
+        _ => model.DailyChunk(
+          name: base.name,
+          chunkId: base.chunkId,
+          isActive: base.isActive,
+          startHour: base.startHour,
+          startMinute: base.startMinute,
+          endHour: base.endHour,
+          endMinute: base.endMinute,
+          category: base.category,
+        ),
+      };
     }).toList();
+
     setState(() {
       _chunks = mappedChunks;
       _selectedChunk = null;
     });
-    widget.onChunkSelected?.call(null);
 
+    notify.scheduledToday(_chunks);
+    widget.onChunkSelected?.call(null);
     if (_selectedChunk != null) {
-      await _loadChunkActivities(_selectedChunk!.chunkId!);
+      await loadChunkActivities(_selectedChunk!.chunkId!);
     }
   }
 
-  Future<void> _loadChunkActivities(int chunkId) async {
+  Future<void> loadChunkActivities(int chunkId) async {
     final dbActivities = await _service.getActivitiesForChunk(
       chunkId,
       _selectedDay,
@@ -106,7 +233,7 @@ class HomePageState extends State<HomePage> {
     });
     widget.onChunkSelected?.call(_selectedChunk);
     if (_selectedChunk != null) {
-      _loadChunkActivities(_selectedChunk!.chunkId!);
+      loadChunkActivities(_selectedChunk!.chunkId!);
     }
     _timelineKey.currentState?.scrollToNow();
   }
@@ -122,7 +249,7 @@ class HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsProvider>();
+    settings = context.watch<SettingsProvider>();
     return Scaffold(
       backgroundColor: Colors.grey.shade300,
       body: SafeArea(
@@ -138,8 +265,9 @@ class HomePageState extends State<HomePage> {
                       children: [
                         /// Top header
                         DateHeader(
+                          is24HourFormat: settings.is24HourFormat,
                           selectedDay: _selectedDay,
-                          onTodayPressed: _goToNow,
+                          onNowPressed: _goToNow,
                         ),
 
                         /// WEEK CALENDAR
@@ -168,13 +296,37 @@ class HomePageState extends State<HomePage> {
                           child: TableCalendar(
                             //replace this with a setting
                             startingDayOfWeek: settings.weekStart,
+                            headerVisible: false,
                             daysOfWeekVisible: false,
                             weekNumbersVisible: true,
-                            headerVisible: false,
+                            calendarStyle: CalendarStyle(
+                              weekendTextStyle: TextStyle(
+                                color: Colors.red.withAlpha(200),
+                              ),
+                              selectedTextStyle: TextStyle(color: Colors.white),
+                              selectedDecoration: BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              todayTextStyle: TextStyle(color: Colors.white),
+                              todayDecoration: BoxDecoration(
+                                color: Colors.black.withAlpha(70),
+                                shape: BoxShape.circle,
+                              ),
+                              weekNumberTextStyle: TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                              ),
+                              markerDecoration: BoxDecoration(
+                                color: Colors.red,
+                              ),
+                            ),
                             rowHeight: 48,
                             availableCalendarFormats: const {
                               CalendarFormat.week: 'Week',
                             },
+                            // eventLoader: (chunks) { return _getChunkForNow();},
                             availableGestures: AvailableGestures.all,
                             calendarFormat: _calendarFormat,
                             daysOfWeekHeight: 28,
@@ -191,9 +343,10 @@ class HomePageState extends State<HomePage> {
                                     ? _getChunkForNow()
                                     : null;
                               });
+                              loadChunks();
                               widget.onChunkSelected?.call(_selectedChunk);
                               if (_selectedChunk != null) {
-                                _loadChunkActivities(_selectedChunk!.chunkId!);
+                                loadChunkActivities(_selectedChunk!.chunkId!);
                               }
                             },
                             onPageChanged: (focusedDay) {
@@ -220,9 +373,9 @@ class HomePageState extends State<HomePage> {
                                     _selectedChunk = chunk;
                                   });
                                   widget.onChunkSelected?.call(chunk);
-                                  await _loadChunkActivities(chunk.chunkId!);
+                                  await loadChunkActivities(chunk.chunkId!);
                                 },
-                                onLongPress: _openChunkManager,
+                                onLongPress: _showUpcomingAlarms,
                                 onChunkLongPress: (chunk) async {
                                   final result = await Navigator.of(context)
                                       .push(
@@ -249,14 +402,13 @@ class HomePageState extends State<HomePage> {
                       chunk: _selectedChunk,
                       activities: _activities,
                       onActivityChanged: _selectedChunk != null
-                          ? () => _loadChunkActivities(_selectedChunk!.chunkId!)
+                          ? () => loadChunkActivities(_selectedChunk!.chunkId!)
                           : null,
                     ),
                   ),
                 ],
               ),
             ),
-
             // Custom Nav bar
           ],
         ),

@@ -4,12 +4,14 @@ import 'package:intl/intl.dart';
 
 class DateHeader extends StatefulWidget {
   final DateTime selectedDay;
-  final VoidCallback onTodayPressed;
+  final VoidCallback onNowPressed;
+  final bool is24HourFormat;
 
   const DateHeader({
     super.key,
     required this.selectedDay,
-    required this.onTodayPressed,
+    required this.onNowPressed,
+    required this.is24HourFormat,
   });
 
   @override
@@ -50,6 +52,7 @@ class _DateHeaderState extends State<DateHeader> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final muted = colorScheme.onSurface.withAlpha(45);
+    final timePattern = widget.is24HourFormat ? 'HH:mm' : 'hh:mm a';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -70,7 +73,7 @@ class _DateHeaderState extends State<DateHeader> {
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 18,
-                    color: muted,
+                    color: Colors.black.withAlpha(80),
                   ),
                 ),
                 Text(
@@ -111,19 +114,19 @@ class _DateHeaderState extends State<DateHeader> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _TimeBlock(
-                    time: DateFormat('h:mm a').format(_now),
-                    label: 'Your location',
+                    time: DateFormat(timePattern).format(_now),
+                    label: 'Local',
                     muted: muted,
                   ),
                   const SizedBox(height: 10),
                   _TimeBlock(
-                    time: DateFormat('h:mm a').format(_now.toUtc()),
+                    time: DateFormat(timePattern).format(_now.toUtc()),
                     label: 'UTC',
                     muted: muted,
                   ),
                   Container(height: 8),
                   ElevatedButton(
-                    onPressed: widget.onTodayPressed,
+                    onPressed: widget.onNowPressed,
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(64),
@@ -157,7 +160,7 @@ class _TimeBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(

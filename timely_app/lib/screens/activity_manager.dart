@@ -34,7 +34,7 @@ class _ActivityManagerState extends State<ActivityManager> {
   late final AppDb _db;
 
   ChunkActivity? _activity;
-  ActivityType _type = ActivityType.everyday;
+  Frequency _frequency = Frequency.everyday;
 
   // Time fields
   TimeOfDay? _startTime;
@@ -49,7 +49,7 @@ class _ActivityManagerState extends State<ActivityManager> {
     if (widget.isEdit && widget.activity != null) {
       final a = widget.activity!;
       _descriptionController.text = a.description;
-      _type = a.type;
+      _frequency = a.frequency;
 
       // Parse existing times if present
       if (a.startTime != null) _startTime = _parseTime(a.startTime!);
@@ -105,9 +105,12 @@ class _ActivityManagerState extends State<ActivityManager> {
     Navigator.of(context).push(
       showPicker(
         context: context,
+        iosStylePicker: true,
         is24HrFormat: timeFormat,
         value: Time(hour: initial.hour, minute: initial.minute),
         minHour: (chunk?.startHour ?? 0).toDouble(),
+        minMinute: 0,
+        maxMinute: 59,
         maxHour: (chunk?.endHour ?? 24).toDouble(),
         onChange: (Time newTime) {
           // validation now uses total minutes
@@ -138,26 +141,26 @@ class _ActivityManagerState extends State<ActivityManager> {
     );
   }
 
-  Future<void> _rangeDatePicker(ActivityType type) async {
-    final rangeDate = await showDateRangePicker(
+  Future<void> _seasonalDatePicker(Frequency frequency) async {
+    final seasonalDate = await showDateRangePicker(
       context: context,
       firstDate: cal.kFirstDay,
       lastDate: cal.kLastDay,
       initialEntryMode: DatePickerEntryMode.calendar,
     );
-    if (rangeDate != null) {
+    if (seasonalDate != null) {
       setState(() {
-        _type = type;
+        _frequency = frequency;
         _activity = RangeActivity(
           description: _descriptionController.text,
-          startDate: rangeDate.start,
-          endDate: rangeDate.end,
+          startDate: seasonalDate.start,
+          endDate: seasonalDate.end,
         );
       });
     }
   }
 
-  Future<void> _periodicDatePicker(ActivityType type) async {
+  Future<void> _weeklyDatePicker(Frequency frequency) async {
     List<String> selectedDays = [];
     if (_activity is PeriodicActivity) {
       selectedDays = (_activity as PeriodicActivity).weekday;
@@ -231,7 +234,7 @@ class _ActivityManagerState extends State<ActivityManager> {
 
     if (selectedDays.isNotEmpty) {
       setState(() {
-        _type = type;
+        _frequency = frequency;
         _activity = PeriodicActivity(
           description: _descriptionController.text,
           weekday: selectedDays,
@@ -240,9 +243,9 @@ class _ActivityManagerState extends State<ActivityManager> {
     }
   }
 
-  Future<void> _everydayDatePicker(ActivityType type) async {
+  Future<void> _everydayDatePicker(Frequency frequency) async {
     setState(() {
-      _type = type;
+      _frequency = frequency;
       _activity = EverydayActivity(description: _descriptionController.text);
     });
   }
@@ -279,7 +282,7 @@ class _ActivityManagerState extends State<ActivityManager> {
           RangeActivity a => _activityService.updateRangeActivity(
             id: a.id!,
             chunkId: widget.chunk!.chunkId!,
-            type: _type.name,
+            frequency: _frequency.name,
             description: description,
             startDate: a.startDate.toIso8601String().split('T').first,
             endDate: a.endDate.toIso8601String().split('T').first,
@@ -288,7 +291,7 @@ class _ActivityManagerState extends State<ActivityManager> {
           ),
           PeriodicActivity a => _activityService.updatePeriodicActivity(
             id: a.id!,
-            type: _type.name,
+            frequency: _frequency.name,
             weekday: a.weekday.join(','),
             description: description,
             chunkId: widget.chunk!.chunkId!,
@@ -297,7 +300,7 @@ class _ActivityManagerState extends State<ActivityManager> {
           ),
           EverydayActivity a => _activityService.updateEverydayActivity(
             id: a.id!,
-            type: _type.name,
+            frequency: _frequency.name,
             date: a.date?.toIso8601String().split('T').first ?? '',
             description: description,
             chunkId: widget.chunk!.chunkId!,
@@ -412,30 +415,30 @@ class _ActivityManagerState extends State<ActivityManager> {
                 ],
               ),
 
-              // ── Repeat type ───────────────────────────────
+              // ── Repeat frequency ───────────────────────────────
               Text(
                 widget.isEdit ? 'Edit when to repeat' : 'When to repeat?',
                 style: Theme.of(context).textTheme.labelMedium,
               ),
               Wrap(
                 spacing: 8,
-                children: ActivityType.values.map((type) {
+                children: Frequency.values.map((frequency) {
                   return ChoiceChip(
-                    label: Text(switch (type) {
-                      ActivityType.periodic => 'Select day(s)',
-                      ActivityType.everyday => 'Everyday',
-                      ActivityType.range => 'Select date(s)',
+                    label: Text(switch (frequency) {
+                      Frequency.weekly => 'Select day(s)',
+                      Frequency.everyday => 'Everyday',
+                      Frequency.seasonal => 'Select date(s)',
                     }),
-                    selected: _type == type,
+                    selected: _frequency == frequency,
                     onSelected: (selected) {
                       if (!selected) return;
-                      switch (type) {
-                        case ActivityType.range:
-                          _rangeDatePicker(type);
-                        case ActivityType.periodic:
-                          _periodicDatePicker(type);
-                        case ActivityType.everyday:
-                          _everydayDatePicker(type);
+                      switch (frequency) {
+                        case Frequency.seasonal:
+                          _seasonalDatePicker(frequency);
+                        case Frequency.weekly:
+                          _weeklyDatePicker(frequency);
+                        case Frequency.everyday:
+                          _everydayDatePicker(frequency);
                       }
                     },
                   );

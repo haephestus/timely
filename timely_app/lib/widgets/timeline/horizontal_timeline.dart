@@ -1,10 +1,12 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:timely/models/chunk.dart';
 import 'package:timely/widgets/timeline/hour_rail.dart';
 import 'package:timely/widgets/timeline/chunk_overlays.dart';
 import 'package:timely/widgets/timeline/now_indicator.dart';
+import 'package:timely/utils/settings_provider.dart';
 
 class HorizontalTimeline extends StatefulWidget {
   final List<Chunk> chunks;
@@ -60,6 +62,7 @@ class HorizontalTimelineState extends State<HorizontalTimeline> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
     return SizedBox(
       height: HorizontalTimeline.timelineHeight,
       child: GestureDetector(
@@ -82,7 +85,7 @@ class HorizontalTimelineState extends State<HorizontalTimeline> {
               height: HorizontalTimeline.timelineHeight,
               child: Stack(
                 children: [
-                  const HourRail(),
+                  HourRail(is24HourFormat: settings.is24HourFormat),
                   ChunkOverlays(
                     chunks: widget.chunks,
                     selectedChunk: widget.selectedChunk,

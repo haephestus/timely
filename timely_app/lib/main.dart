@@ -8,6 +8,7 @@ import 'package:timely/screens/settings.dart';
 import 'package:timely/utils/settings_provider.dart';
 import 'package:timely/widgets/navbar.dart';
 import 'package:provider/provider.dart';
+import 'package:alarm/utils/alarm_set.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,8 +16,27 @@ void main() async {
   await settings.load();
 
   await Alarm.init();
+  _listenForAlarms();
 
   runApp(ChangeNotifierProvider.value(value: settings, child: const Timely()));
+}
+
+void _listenForAlarms() {
+  Alarm.ringing.listen((AlarmSet alarmSet) {
+    for (final alarm in alarmSet.alarms) {
+      Alarm.set(
+        alarmSettings: AlarmSettings(
+          id: alarm.id,
+          dateTime: alarm.dateTime.add(const Duration(days: 1)),
+          assetAudioPath: alarm.assetAudioPath,
+          loopAudio: alarm.loopAudio,
+          vibrate: alarm.vibrate,
+          notificationSettings: alarm.notificationSettings,
+          volumeSettings: alarm.volumeSettings,
+        ),
+      );
+    }
+  });
 }
 
 class Timely extends StatelessWidget {
@@ -63,11 +83,14 @@ class _TimelyRootState extends State<TimelyRoot> {
   }
 
   Future<void> _addActivity() async {
-    await Navigator.of(context).push(
+    final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => ActivityManager(chunk: _selectedChunk, isEdit: false),
       ),
     );
+    if (result != null) {
+      _homekey.currentState!.loadChunkActivities(_selectedChunk!.chunkId!);
+    }
   }
 
   Future<void> _addChunk() async {

@@ -21,23 +21,22 @@ class FadingListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ShaderMask(
-      shaderCallback:
-          (rect) => LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.transparent,
-              Colors.white,
-              Colors.white,
-              Colors.transparent,
-            ],
-            stops: [
-              0.0,
-              fadeHeight / rect.height,
-              1 - fadeHeight / rect.height,
-              1.0,
-            ],
-          ).createShader(rect),
+      shaderCallback: (rect) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.transparent,
+          Colors.white,
+          Colors.white,
+          Colors.transparent,
+        ],
+        stops: [
+          0.0,
+          fadeHeight / rect.height,
+          1 - fadeHeight / rect.height,
+          1.0,
+        ],
+      ).createShader(rect),
       blendMode: BlendMode.dstIn,
       child: ListView.builder(
         padding: EdgeInsets.symmetric(vertical: fadeHeight, horizontal: 10),
@@ -99,8 +98,9 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
   Future<void> _deleteActivity() async {
     if (widget.activity?.id == null) return;
     try {
-      await (widget.db.delete(widget.db.activities)
-        ..where((a) => a.id.equals(widget.activity!.id!))).go();
+      await (widget.db.delete(
+        widget.db.activities,
+      )..where((a) => a.id.equals(widget.activity!.id!))).go();
       widget.onDeleted?.call();
     } catch (e) {
       if (!mounted) return;
@@ -131,12 +131,11 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                   onPressed: () async {
                     final result = await Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder:
-                            (_) => ActivityManager(
-                              chunk: widget.chunk,
-                              isEdit: true,
-                              activity: activity,
-                            ),
+                        builder: (_) => ActivityManager(
+                          chunk: widget.chunk,
+                          isEdit: true,
+                          activity: activity,
+                        ),
                       ),
                     );
                     if (result == true) widget.onDeleted?.call();
@@ -150,20 +149,18 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
 
         // ── Swipeable card ─────────────────────────────────────
         GestureDetector(
-          onPanUpdate:
-              (d) => setState(() {
-                _dragOffset = (_dragOffset + d.delta.dx).clamp(-_maxDrag, 0.0);
-              }),
-          onPanEnd:
-              (_) => setState(() {
-                if (_dragOffset < -_threshold) {
-                  _isOpen = true;
-                  _dragOffset = -_maxDrag;
-                } else {
-                  _isOpen = false;
-                  _dragOffset = 0;
-                }
-              }),
+          onPanUpdate: (d) => setState(() {
+            _dragOffset = (_dragOffset + d.delta.dx).clamp(-_maxDrag, 0.0);
+          }),
+          onPanEnd: (_) => setState(() {
+            if (_dragOffset < -_threshold) {
+              _isOpen = true;
+              _dragOffset = -_maxDrag;
+            } else {
+              _isOpen = false;
+              _dragOffset = 0;
+            }
+          }),
           onTap: () {
             if (_isOpen) {
               setState(() {
@@ -183,7 +180,7 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ── TOP: description + type icon ──────────────
+                  // ── TOP: description + frequency icon ──────────────
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                     child: Row(
@@ -282,8 +279,9 @@ class _TimeLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment:
-          alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      crossAxisAlignment: alignRight
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
       children: [
         Text(
           time,

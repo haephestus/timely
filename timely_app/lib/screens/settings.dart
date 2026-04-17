@@ -45,6 +45,11 @@ class _SettingsState extends State<Settings> {
                   value: settings.darkMode,
                   onChanged: (v) => settings.setDarkMode(v),
                 ),
+                SwitchSettingItem(
+                  value: settings.saveLastPosition,
+                  onChanged: (v) => settings.setSaveLastPosition(v),
+                  label: "Save last position",
+                ),
                 ChoiceSettingItem(
                   label: "Time format",
                   value: settings.is24HourFormat ? 1 : 0,
@@ -67,26 +72,42 @@ class _SettingsState extends State<Settings> {
               ],
             ),
 
+            SizedBox(height: 12),
             // Chunks settings,
             // Default chunk duration
             // Default start hour for new chunks
+            // Default break duration before new chunk
             // Show inactive chunks on timeline - toggle on or off
-
+            SettingOptionWidget(
+              label: 'Chunks Settings',
+              options: [
+                SwitchSettingItem(
+                  value: settings.showInactiveChunks,
+                  onChanged: (v) => settings.setShowInactiveChunks(v),
+                  label: 'Show Inactive Chunks',
+                ),
+              ],
+            ),
             // Activity settings
             // Default Activity duration
             // Show completed activies - toggle on or off
+            // Default break duration before new activity
             // Sort order - by time, by name, status or priority
-
+            SizedBox(height: 12),
+            SettingOptionWidget(label: 'Activity Settings', options: []),
             // Notifications
             // Notification settings,
             // Chunk start reminders - toggle on or off,
             //    lead time (5 mins before, 10 mins before or 15 mins before)
-
+            SizedBox(height: 12),
+            SettingOptionWidget(label: 'Notifications Settings', options: []),
             // Data
             // Export to csv or json
             // clear all activies
             // clear all chunks
             // reset application
+            SizedBox(height: 12),
+            SettingOptionWidget(label: 'Data & Privacy', options: []),
           ],
         ),
       ),

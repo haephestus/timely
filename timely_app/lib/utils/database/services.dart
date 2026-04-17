@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart';
 import 'package:timely/models/chunk_activity.dart';
-import 'package:timely/utils/calendar_utils.dart';
 import 'package:timely/utils/database/database.dart' as db;
 
 class ChunkActivityService {
@@ -14,6 +13,8 @@ class ChunkActivityService {
   */
 
   Future<List<db.Chunk>> getAllChunks() => database.getAllChunks().get();
+  Future<List<db.Chunk>> getTodaysChunks(String date) =>
+      database.getTodaysChunks(date).get();
   Future<List<db.Chunk>> getActiveChunks() => database.getActiveChunks().get();
   Future<db.Chunk?> getChunkByName(String name) =>
       database.getChunkInfoByChunkName(name).getSingleOrNull();
@@ -27,9 +28,9 @@ class ChunkActivityService {
     int? excludeId,
     String? excludedDescription,
   }) async {
-    final all =
-        await (database.select(database.activities)
-          ..where((a) => a.chunkId.equals(chunkId))).get();
+    final all = await (database.select(
+      database.activities,
+    )..where((a) => a.chunkId.equals(chunkId))).get();
 
     final newStart = _timeToMinutes(startTime);
     final newEnd = _timeToMinutes(endTime);
@@ -52,7 +53,7 @@ class ChunkActivityService {
     int endHour,
     int endMinute, {
     int? excludeId,
-    String? type,
+    String? frequency,
   }) async {
     final all = await database.getAllChunks().get();
     final newStart = startHour * 60 + startMinute;
@@ -60,9 +61,9 @@ class ChunkActivityService {
 
     for (final chunk in all) {
       if (excludeId != null && chunk.id == excludeId) continue;
-      if (type != null && chunk.type != type) continue;
-      final cStart = (chunk.startHour ?? 0) * 60 + chunk.startMinute;
-      final cEnd = (chunk.endHour ?? 0) * 60 + chunk.endMinute;
+      if (frequency != null && chunk.frequency != frequency) continue;
+      final cStart = (chunk.startHour ?? 0) * 60 + chunk.startMinute!;
+      final cEnd = (chunk.endHour ?? 0) * 60 + chunk.endMinute!;
       if (newStart < cEnd && newEnd > cStart) return chunk;
     }
     return null;
@@ -79,8 +80,8 @@ class ChunkActivityService {
 
     final actStart = _timeToMinutes(startTime);
     final actEnd = _timeToMinutes(endTime);
-    final chunkStart = (chunk.startHour ?? 0) * 60 + chunk.startMinute;
-    final chunkEnd = (chunk.endHour ?? 0) * 60 + chunk.endMinute;
+    final chunkStart = (chunk.startHour ?? 0) * 60 + chunk.startMinute!;
+    final chunkEnd = (chunk.endHour ?? 0) * 60 + chunk.endMinute!;
 
     return actStart >= chunkStart && actEnd <= chunkEnd;
   }
@@ -100,26 +101,26 @@ class ChunkActivityService {
   ) async {
     final dbActivities = await _getActivitiesFromDb(chunkId, date);
     return dbActivities.map((a) {
-      switch (a.type) {
+      switch (a.frequency) {
         case 'everyday':
           return EverydayActivity(
             id: a.id,
             description: a.description,
             completed: a.completed == 1,
-            date: DateTime.parse(a.date!),
+            date: a.date != null ? DateTime.parse(a.date!) : null,
             startTime: a.startTime,
             endTime: a.endTime,
           );
-        case 'periodic':
+        case 'weekly':
           return PeriodicActivity(
             id: a.id,
             description: a.description,
             completed: a.completed == 1,
-            weekday: a.weekday?.split(',') ?? [],
+            weekday: a.selectedDays?.split(',') ?? [],
             startTime: a.startTime,
             endTime: a.endTime,
           );
-        case 'range':
+        case 'seasonal':
           return RangeActivity(
             id: a.id,
             description: a.description,
@@ -130,7 +131,7 @@ class ChunkActivityService {
             endTime: a.endTime,
           );
         default:
-          throw Exception('Unknown activity type: ${a.type}');
+          throw Exception('Unknown activity frequency: ${a.frequency}');
       }
     }).toList();
   }
@@ -140,6 +141,7 @@ class ChunkActivityService {
    * =========================
   */
 
+  // TODO: delete activity, batch delete activity
   Future<void> addEverydayActivity({
     required int chunkId,
     required String description,
@@ -148,26 +150,20 @@ class ChunkActivityService {
   }) async {
     await _validateActivityTimes(chunkId, startTime, endTime);
     await database.batch((b) {
-      for (
-        var d = DateTime.now();
-        !d.isAfter(kLastDay);
-        d = d.add(const Duration(days: 1))
-      ) {
-        b.insert(
-          database.activities,
-          db.ActivitiesCompanion(
-            type: const Value('everyday'),
-            date: Value(_iso(d)),
-            description: Value(description),
-            chunkId: Value(chunkId),
-            startTime: Value(startTime),
-            endTime: Value(endTime),
-            startDate: const Value.absent(),
-            endDate: const Value.absent(),
-            completed: const Value(0),
-          ),
-        );
-      }
+      b.insert(
+        database.activities,
+        db.ActivitiesCompanion(
+          frequency: const Value('everyday'),
+          description: Value(description),
+          chunkId: Value(chunkId),
+          startTime: Value(startTime),
+          endTime: Value(endTime),
+          startDate: const Value.absent(),
+          date: const Value.absent(),
+          endDate: const Value.absent(),
+          completed: const Value(0),
+        ),
+      );
     });
   }
 
@@ -175,14 +171,14 @@ class ChunkActivityService {
     required int id,
     required String date,
     required int chunkId,
-    required String type,
+    required String frequency,
     required String description,
     required String startTime,
     required String endTime,
   }) async {
-    final original =
-        await (database.select(database.activities)
-          ..where((a) => a.id.equals(id))).getSingle();
+    final original = await (database.select(
+      database.activities,
+    )..where((a) => a.id.equals(id))).getSingle();
 
     await _validateActivityTimes(
       chunkId,
@@ -197,15 +193,14 @@ class ChunkActivityService {
         database.activities,
         db.ActivitiesCompanion(
           description: Value(description),
-          type: Value(type),
+          frequency: Value(frequency),
           startTime: Value(startTime),
           endTime: Value(endTime),
         ),
-        where:
-            (tbl) =>
-                tbl.chunkId.equals(chunkId) &
-                tbl.type.equals(type) &
-                tbl.description.equals(original.description),
+        where: (tbl) =>
+            tbl.chunkId.equals(chunkId) &
+            tbl.frequency.equals(frequency) &
+            tbl.description.equals(original.description),
       );
     });
   }
@@ -222,8 +217,8 @@ class ChunkActivityService {
         .into(database.activities)
         .insert(
           db.ActivitiesCompanion(
-            type: const Value('periodic'),
-            weekday: Value(weekday),
+            frequency: const Value('weekly'),
+            selectedDays: Value(weekday),
             description: Value(description),
             chunkId: Value(chunkId),
             startTime: Value(startTime),
@@ -240,19 +235,20 @@ class ChunkActivityService {
     required String weekday,
     required int chunkId,
     required String description,
-    required String type,
+    required String frequency,
     required String startTime,
     required String endTime,
   }) async {
     await _validateActivityTimes(chunkId, startTime, endTime, excludeId: id);
-    await (database.update(database.activities)
-      ..where((a) => a.id.equals(id))).write(
+    await (database.update(
+      database.activities,
+    )..where((a) => a.id.equals(id))).write(
       db.ActivitiesCompanion(
         id: Value(id),
-        weekday: Value(weekday),
+        selectedDays: Value(weekday),
         chunkId: Value(chunkId),
         description: Value(description),
-        type: Value(type),
+        frequency: Value(frequency),
         startTime: Value(startTime),
         endTime: Value(endTime),
       ),
@@ -272,7 +268,7 @@ class ChunkActivityService {
         .into(database.activities)
         .insert(
           db.ActivitiesCompanion(
-            type: const Value('range'),
+            frequency: const Value('seasonal'),
             description: Value(description),
             startDate: Value(_iso(startDate)),
             endDate: Value(_iso(endDate)),
@@ -291,20 +287,21 @@ class ChunkActivityService {
     required String endDate,
     required int chunkId,
     required String description,
-    required String type,
+    required String frequency,
     required String startTime,
     required String endTime,
   }) async {
     await _validateActivityTimes(chunkId, startTime, endTime, excludeId: id);
-    await (database.update(database.activities)
-      ..where((a) => a.id.equals(id))).write(
+    await (database.update(
+      database.activities,
+    )..where((a) => a.id.equals(id))).write(
       db.ActivitiesCompanion(
         id: Value(id),
         startDate: Value(startDate),
         endDate: Value(endDate),
         chunkId: Value(chunkId),
         description: Value(description),
-        type: Value(type),
+        frequency: Value(frequency),
         startTime: Value(startTime),
         endTime: Value(endTime),
       ),
@@ -312,9 +309,9 @@ class ChunkActivityService {
   }
 
   Future<void> setActivityCompleted(int activityId, bool completed) {
-    return (database.update(database.activities)..where(
-      (a) => a.id.equals(activityId),
-    )).write(db.ActivitiesCompanion(completed: Value(completed ? 1 : 0)));
+    return (database.update(database.activities)
+          ..where((a) => a.id.equals(activityId)))
+        .write(db.ActivitiesCompanion(completed: Value(completed ? 1 : 0)));
   }
 
   /* =========================
