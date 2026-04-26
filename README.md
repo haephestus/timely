@@ -1,5 +1,10 @@
 # Timely
 
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-purple.svg)](https://opensource.org/licenses/AGPL-3.0)
+[![Flutter](https://img.shields.io/badge/Flutter-3.32-blue?logo=flutter)](https://flutter.dev)
+[![Platform](https://img.shields.io/badge/platform-desktop%20%7C%20mobile-lightgrey)]()
+[![Status](https://img.shields.io/badge/status-active-brightgreen)]()
+
 > A time management app built around how your brain actually works — not how productivity culture thinks it should.
 
 ---
