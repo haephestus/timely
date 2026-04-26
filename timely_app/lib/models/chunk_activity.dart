@@ -1,6 +1,6 @@
 // chunk_activity.dart
 
-enum Frequency { everyday, weekly, seasonal }
+enum Frequency { onceoff, daily, weekly, seasonal }
 
 sealed class ChunkActivity {
   final int? id;
@@ -22,10 +22,9 @@ sealed class ChunkActivity {
   });
 }
 
-final class EverydayActivity extends ChunkActivity {
+final class OnceOffActivity extends ChunkActivity {
   final DateTime? date;
-
-  EverydayActivity({
+  OnceOffActivity({
     super.id,
     super.chunkId,
     this.date,
@@ -33,13 +32,27 @@ final class EverydayActivity extends ChunkActivity {
     required super.description,
     super.startTime,
     super.endTime,
-  }) : super(frequency: Frequency.everyday);
+  }) : super(frequency: Frequency.daily);
 }
 
-final class PeriodicActivity extends ChunkActivity {
+final class DailyActivity extends ChunkActivity {
+  final DateTime? date;
+
+  DailyActivity({
+    super.id,
+    super.chunkId,
+    this.date,
+    super.completed = false,
+    required super.description,
+    super.startTime,
+    super.endTime,
+  }) : super(frequency: Frequency.daily);
+}
+
+final class WeeklyActivity extends ChunkActivity {
   final List<String> weekday;
 
-  PeriodicActivity({
+  WeeklyActivity({
     super.id,
     super.chunkId,
     required this.weekday,
@@ -50,11 +63,11 @@ final class PeriodicActivity extends ChunkActivity {
   }) : super(frequency: Frequency.weekly);
 }
 
-final class RangeActivity extends ChunkActivity {
+final class SeasonalActivity extends ChunkActivity {
   final DateTime startDate;
   final DateTime endDate;
 
-  RangeActivity({
+  SeasonalActivity({
     super.id,
     super.chunkId,
     required this.endDate,

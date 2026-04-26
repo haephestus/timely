@@ -1,28 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:timely/models/chunk_activity.dart';
 import 'package:timely/models/chunk.dart';
 import 'package:timely/screens/activity_manager.dart';
 import 'package:timely/utils/database/database.dart' as database;
+import 'package:timely/utils/settings_provider.dart';
 import 'package:timely/widgets/activity/vertical_activity_card.dart';
 
+// TODO: check for incomplete activities, carry them over to next day
+// OR show incomplete activity counter
+// WARN: hook into service.dart (add prompting to reschedule activities)
+// loadChunkActivities -> get all incomplete activities
 class ActivityWidget extends StatelessWidget {
   final Chunk? chunk;
   final database.AppDb db;
   final List<ChunkActivity> activities;
   final ChunkActivity? selectedActivity;
   final VoidCallback? onActivityChanged;
+  final ScrollController? scrollController;
 
   const ActivityWidget({
     super.key,
-    required this.chunk,
     required this.db,
-    required this.activities,
+    required this.chunk,
     this.selectedActivity,
+    required this.activities,
+    required this.scrollController,
     required this.onActivityChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    SettingsProvider settings = context.watch<SettingsProvider>();
+    String _fmt12(String? timeStr) {
+      if (timeStr == null) return '--:--';
+      final parts = timeStr.split(':');
+      if (parts.length != 2) return '--:--';
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      if (h == null || m == null) return '--:--';
+      final hour = h == 0
+          ? 12
+          : h > 12
+          ? h - 12
+          : h;
+      final period = h >= 12 ? 'PM' : 'AM';
+      return '${hour.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $period';
+    }
+
     if (chunk == null) {
       return Container(
         decoration: const BoxDecoration(
@@ -77,6 +102,7 @@ class ActivityWidget extends StatelessWidget {
                     ),
                   )
                 : ListView.builder(
+                    controller: scrollController,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 12,
@@ -87,6 +113,7 @@ class ActivityWidget extends StatelessWidget {
                       chunk: chunk!,
                       activity: activities[index],
                       onDeleted: () => onActivityChanged?.call(),
+                      onActivityChanged: () => onActivityChanged?.call(),
                     ),
                   ),
           ),
@@ -160,8 +187,11 @@ class ActivityWidget extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      // TODO : chunk times formatting
                       Text(
-                        '${chunk!.startTimeStr} – ${chunk!.endTimeStr}',
+                        settings.is24HourFormat
+                            ? '${chunk!.startTimeStr} – ${chunk!.endTimeStr}'
+                            : '${_fmt12(chunk!.startTimeStr)} – ${_fmt12(chunk!.endTimeStr)}',
                         style: TextStyle(fontSize: 12, color: s.accent),
                       ),
                     ],

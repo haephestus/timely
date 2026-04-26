@@ -19,9 +19,15 @@ import 'package:timely/utils/database/services.dart' as service;
 import 'package:timely/utils/calendar_utils.dart';
 
 class HomePage extends StatefulWidget {
+  final ScrollController? scrollController;
   final ValueChanged<model.Chunk?>? onChunkSelected;
   final ValueChanged<model.Chunk?>? onChunkAdded;
-  const HomePage({this.onChunkSelected, this.onChunkAdded, super.key});
+  const HomePage({
+    this.onChunkSelected,
+    this.onChunkAdded,
+    this.scrollController,
+    super.key,
+  });
 
   @override
   State<HomePage> createState() => HomePageState();
@@ -315,7 +321,7 @@ class HomePageState extends State<HomePage> {
                               ),
                               weekNumberTextStyle: TextStyle(
                                 color: Colors.red,
-                                fontSize: 12,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w900,
                               ),
                               markerDecoration: BoxDecoration(
@@ -398,6 +404,7 @@ class HomePageState extends State<HomePage> {
                   /// ACTIVITIES FOR CHUNK
                   Expanded(
                     child: ActivityWidget(
+                      scrollController: widget.scrollController,
                       db: _database,
                       chunk: _selectedChunk,
                       activities: _activities,

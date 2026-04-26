@@ -34,11 +34,12 @@ class _ActivityManagerState extends State<ActivityManager> {
   late final AppDb _db;
 
   ChunkActivity? _activity;
-  Frequency _frequency = Frequency.everyday;
+  Frequency _frequency = Frequency.daily;
 
   // Time fields
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+  DateTime? _onceoffDate;
 
   @override
   void initState() {
@@ -56,7 +57,7 @@ class _ActivityManagerState extends State<ActivityManager> {
       if (a.endTime != null) _endTime = _parseTime(a.endTime!);
 
       _activity = switch (a) {
-        RangeActivity r => RangeActivity(
+        SeasonalActivity r => SeasonalActivity(
           id: r.id,
           startDate: r.startDate,
           endDate: r.endDate,
@@ -64,14 +65,21 @@ class _ActivityManagerState extends State<ActivityManager> {
           startTime: r.startTime,
           endTime: r.endTime,
         ),
-        PeriodicActivity p => PeriodicActivity(
+        WeeklyActivity p => WeeklyActivity(
           id: p.id,
           weekday: p.weekday,
           description: p.description,
           startTime: p.startTime,
           endTime: p.endTime,
         ),
-        EverydayActivity e => EverydayActivity(
+        DailyActivity e => DailyActivity(
+          id: e.id,
+          date: e.date,
+          description: e.description,
+          startTime: e.startTime,
+          endTime: e.endTime,
+        ),
+        OnceOffActivity e => OnceOffActivity(
           id: e.id,
           date: e.date,
           description: e.description,
@@ -81,7 +89,7 @@ class _ActivityManagerState extends State<ActivityManager> {
       };
     } else {
       final now = DateTime.now();
-      _activity = EverydayActivity(date: now, description: '');
+      _activity = DailyActivity(date: now, description: '');
     }
   }
 
@@ -151,7 +159,7 @@ class _ActivityManagerState extends State<ActivityManager> {
     if (seasonalDate != null) {
       setState(() {
         _frequency = frequency;
-        _activity = RangeActivity(
+        _activity = SeasonalActivity(
           description: _descriptionController.text,
           startDate: seasonalDate.start,
           endDate: seasonalDate.end,
@@ -162,8 +170,8 @@ class _ActivityManagerState extends State<ActivityManager> {
 
   Future<void> _weeklyDatePicker(Frequency frequency) async {
     List<String> selectedDays = [];
-    if (_activity is PeriodicActivity) {
-      selectedDays = (_activity as PeriodicActivity).weekday;
+    if (_activity is WeeklyActivity) {
+      selectedDays = (_activity as WeeklyActivity).weekday;
     }
 
     final days = [
@@ -235,7 +243,7 @@ class _ActivityManagerState extends State<ActivityManager> {
     if (selectedDays.isNotEmpty) {
       setState(() {
         _frequency = frequency;
-        _activity = PeriodicActivity(
+        _activity = WeeklyActivity(
           description: _descriptionController.text,
           weekday: selectedDays,
         );
@@ -243,10 +251,32 @@ class _ActivityManagerState extends State<ActivityManager> {
     }
   }
 
-  Future<void> _everydayDatePicker(Frequency frequency) async {
+  Future<void> _dailyDatePicker(Frequency frequency) async {
     setState(() {
       _frequency = frequency;
-      _activity = EverydayActivity(description: _descriptionController.text);
+      _activity = DailyActivity(description: _descriptionController.text);
+    });
+  }
+
+  Future<void> _onceoffDatePicker(Frequency frequency) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _onceoffDate ?? DateTime.now(),
+      firstDate: cal.kFirstDay,
+      lastDate: cal.kLastDay,
+    );
+
+    // Don't update if user cancelled
+    if (date == null) return;
+
+    setState(() {
+      _onceoffDate = date;
+      _frequency = frequency;
+      _activity = OnceOffActivity(
+        id: _activity?.id,
+        description: _descriptionController.text,
+        date: date,
+      );
     });
   }
 
@@ -254,7 +284,14 @@ class _ActivityManagerState extends State<ActivityManager> {
     final description = _descriptionController.text.trim();
 
     if (description.isEmpty) return;
-
+    if (widget.chunk == null || widget.chunk!.chunkId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No chunk selected. Please select a chunk first.'),
+        ),
+      );
+      return;
+    }
     // Require both times to be set
     if (_startTime == null || _endTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -279,7 +316,7 @@ class _ActivityManagerState extends State<ActivityManager> {
     try {
       if (widget.isEdit && widget.chunk != null && widget.activity != null) {
         await switch (_activity!) {
-          RangeActivity a => _activityService.updateRangeActivity(
+          SeasonalActivity a => _activityService.updateSeasonalActivity(
             id: a.id!,
             chunkId: widget.chunk!.chunkId!,
             frequency: _frequency.name,
@@ -289,7 +326,7 @@ class _ActivityManagerState extends State<ActivityManager> {
             startTime: startTimeStr,
             endTime: endTimeStr,
           ),
-          PeriodicActivity a => _activityService.updatePeriodicActivity(
+          WeeklyActivity a => _activityService.updateWeeklyActivity(
             id: a.id!,
             frequency: _frequency.name,
             weekday: a.weekday.join(','),
@@ -298,7 +335,7 @@ class _ActivityManagerState extends State<ActivityManager> {
             startTime: startTimeStr,
             endTime: endTimeStr,
           ),
-          EverydayActivity a => _activityService.updateEverydayActivity(
+          DailyActivity a => _activityService.updateDailyActivity(
             id: a.id!,
             frequency: _frequency.name,
             date: a.date?.toIso8601String().split('T').first ?? '',
@@ -307,10 +344,24 @@ class _ActivityManagerState extends State<ActivityManager> {
             startTime: startTimeStr,
             endTime: endTimeStr,
           ),
+          OnceOffActivity a =>
+            a.date == null
+                ? throw Exception(
+                    'Please select a date for the once-off activity',
+                  )
+                : _activityService.updateOnceOffActivity(
+                    id: a.id!,
+                    frequency: _frequency.name,
+                    date: a.date?.toIso8601String().split('T').first ?? '',
+                    chunkId: widget.chunk!.chunkId!,
+                    description: description,
+                    startTime: startTimeStr,
+                    endTime: endTimeStr,
+                  ),
         };
       } else {
         await switch (_activity!) {
-          RangeActivity a => _activityService.addRangeActivity(
+          SeasonalActivity a => _activityService.addSeasonalActivity(
             chunkId: widget.chunk!.chunkId!,
             description: description,
             startDate: a.startDate,
@@ -318,19 +369,31 @@ class _ActivityManagerState extends State<ActivityManager> {
             startTime: startTimeStr,
             endTime: endTimeStr,
           ),
-          PeriodicActivity a => _activityService.addPeriodicActivity(
+          WeeklyActivity a => _activityService.addWeeklyActivity(
             weekday: a.weekday.join(','),
             description: description,
             chunkId: widget.chunk!.chunkId!,
             startTime: startTimeStr,
             endTime: endTimeStr,
           ),
-          EverydayActivity _ => _activityService.addEverydayActivity(
+          DailyActivity _ => _activityService.addDailyActivity(
             description: description,
             chunkId: widget.chunk!.chunkId!,
             startTime: startTimeStr,
             endTime: endTimeStr,
           ),
+          OnceOffActivity a =>
+            a.date == null
+                ? throw Exception(
+                    'Please select a date for the once-off activity',
+                  )
+                : _activityService.addOnceOffActivity(
+                    chunkId: widget.chunk!.chunkId!,
+                    date: a.date?.toIso8601String().split('T').first ?? '',
+                    description: description,
+                    startTime: startTimeStr,
+                    endTime: endTimeStr,
+                  ),
         };
       }
 
@@ -426,8 +489,9 @@ class _ActivityManagerState extends State<ActivityManager> {
                   return ChoiceChip(
                     label: Text(switch (frequency) {
                       Frequency.weekly => 'Select day(s)',
-                      Frequency.everyday => 'Everyday',
+                      Frequency.daily => 'Everyday',
                       Frequency.seasonal => 'Select date(s)',
+                      Frequency.onceoff => 'Once off',
                     }),
                     selected: _frequency == frequency,
                     onSelected: (selected) {
@@ -437,8 +501,10 @@ class _ActivityManagerState extends State<ActivityManager> {
                           _seasonalDatePicker(frequency);
                         case Frequency.weekly:
                           _weeklyDatePicker(frequency);
-                        case Frequency.everyday:
-                          _everydayDatePicker(frequency);
+                        case Frequency.daily:
+                          _dailyDatePicker(frequency);
+                        case Frequency.onceoff:
+                          _onceoffDatePicker(frequency);
                       }
                     },
                   );

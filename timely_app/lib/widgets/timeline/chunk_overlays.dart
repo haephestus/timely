@@ -55,12 +55,14 @@ class _ChunkOverlaysState extends State<ChunkOverlays> {
                 ),
                 child: Row(
                   children: [
-                    Text(
-                      chunk.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black54,
+                    Expanded(
+                      child: Text(
+                        chunk.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black54,
+                        ),
                       ),
                     ),
                     Spacer(),

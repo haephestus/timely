@@ -75,19 +75,25 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
 
   ({Color bg, Color accent, String label, IconData icon}) get _scheme =>
       switch (widget.activity!) {
-        EverydayActivity() => (
+        OnceOffActivity() => (
+          bg: const Color(0xFFD4B896),
+          accent: const Color(0xFFA07850),
+          label: 'Daily',
+          icon: Icons.repeat,
+        ),
+        DailyActivity() => (
           bg: const Color(0xFFD4B896),
           accent: const Color(0xFF7A5230),
           label: 'Daily',
           icon: Icons.repeat_rounded,
         ),
-        PeriodicActivity() => (
+        WeeklyActivity() => (
           bg: const Color(0xFFBFCFD4),
           accent: const Color(0xFF3D6B7A),
           label: 'Periodic',
           icon: Icons.calendar_month_rounded,
         ),
-        RangeActivity() => (
+        SeasonalActivity() => (
           bg: const Color(0xFFD4C5A9),
           accent: const Color(0xFF6B5535),
           label: 'Range',

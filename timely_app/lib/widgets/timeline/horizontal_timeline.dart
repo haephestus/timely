@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timely/models/chunk.dart';
@@ -31,7 +30,8 @@ class HorizontalTimeline extends StatefulWidget {
   HorizontalTimelineState createState() => HorizontalTimelineState();
 }
 
-class HorizontalTimelineState extends State<HorizontalTimeline> {
+class HorizontalTimelineState extends State<HorizontalTimeline>
+    with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
 
   double _nowOffset() {
@@ -43,26 +43,47 @@ class HorizontalTimelineState extends State<HorizontalTimeline> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    // Scroll after first layout
     WidgetsBinding.instance.addPostFrameCallback((_) {
       scrollToNow();
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Rebuild + scroll when app returns
+      setState(() {});
+      scrollToNow();
+    }
+  }
+
   void scrollToNow() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      final offset = _nowOffset() - (MediaQuery.of(context).size.width / 2);
-      _scrollController.animateTo(
-        offset.clamp(0.0, _scrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    });
+    if (!_scrollController.hasClients) return;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final offset = _nowOffset() - (screenWidth / 2);
+
+    _scrollController.animateTo(
+      offset.clamp(0.0, _scrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+
     return SizedBox(
       height: HorizontalTimeline.timelineHeight,
       child: GestureDetector(

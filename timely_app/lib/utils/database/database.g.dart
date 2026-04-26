@@ -12,7 +12,7 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
     'id',
     aliasedName,
-    true,
+    false,
     hasAutoIncrement: true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
@@ -37,7 +37,7 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL CHECK (frequency IN (\'weekly\', \'daily\', \'onceoff\', \'seasonal\'))',
+        'NOT NULL CHECK (frequency IN (\'onceoff\', \'daily\', \'weekly\', \'seasonal\'))',
   );
   static const VerificationMeta _categoryMeta = const VerificationMeta(
     'category',
@@ -276,7 +276,7 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
-      ),
+      )!,
       name: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}name'],
@@ -335,14 +335,14 @@ class Chunks extends Table with TableInfo<Chunks, Chunk> {
 
   @override
   List<String> get customConstraints => const [
-    'CHECK((frequency = \'daily\' AND startHour IS NOT NULL AND endHour IS NOT NULL)OR(frequency = \'weekly\' AND startHour IS NOT NULL AND endHour IS NOT NULL AND selectedDays IS NOT NULL AND date IS NULL)OR(frequency = \'onceoff\' AND startHour IS NOT NULL AND endHour IS NOT NULL AND date IS NOT NULL)OR(frequency = \'seasonal\' AND startHour IS NOT NULL AND endHour IS NOT NULL AND startDate IS NOT NULL AND endDate IS NOT NULL AND selectedDays IS NULL))',
+    'CHECK((frequency = \'onceoff\' AND date IS NOT NULL AND startHour IS NOT NULL AND endHour IS NOT NULL)OR(frequency = \'daily\' AND date IS NULL AND startHour IS NOT NULL AND endHour IS NOT NULL)OR(frequency = \'weekly\' AND startHour IS NOT NULL AND endHour IS NOT NULL AND selectedDays IS NOT NULL AND date IS NULL)OR(frequency = \'seasonal\' AND startHour IS NOT NULL AND endHour IS NOT NULL AND startDate IS NOT NULL AND endDate IS NOT NULL AND selectedDays IS NULL))',
   ];
   @override
   bool get dontWriteConstraints => true;
 }
 
 class Chunk extends DataClass implements Insertable<Chunk> {
-  final int? id;
+  final int id;
   final String name;
   final String frequency;
   final String category;
@@ -356,7 +356,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
   final int? endHour;
   final int? endMinute;
   const Chunk({
-    this.id,
+    required this.id,
     required this.name,
     required this.frequency,
     required this.category,
@@ -373,9 +373,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (!nullToAbsent || id != null) {
-      map['id'] = Variable<int>(id);
-    }
+    map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
     map['frequency'] = Variable<String>(frequency);
     map['category'] = Variable<String>(category);
@@ -409,7 +407,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
 
   ChunksCompanion toCompanion(bool nullToAbsent) {
     return ChunksCompanion(
-      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      id: Value(id),
       name: Value(name),
       frequency: Value(frequency),
       category: Value(category),
@@ -445,7 +443,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Chunk(
-      id: serializer.fromJson<int?>(json['id']),
+      id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       frequency: serializer.fromJson<String>(json['frequency']),
       category: serializer.fromJson<String>(json['category']),
@@ -464,7 +462,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'id': serializer.toJson<int?>(id),
+      'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
       'frequency': serializer.toJson<String>(frequency),
       'category': serializer.toJson<String>(category),
@@ -481,7 +479,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
   }
 
   Chunk copyWith({
-    Value<int?> id = const Value.absent(),
+    int? id,
     String? name,
     String? frequency,
     String? category,
@@ -495,7 +493,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
     Value<int?> endHour = const Value.absent(),
     Value<int?> endMinute = const Value.absent(),
   }) => Chunk(
-    id: id.present ? id.value : this.id,
+    id: id ?? this.id,
     name: name ?? this.name,
     frequency: frequency ?? this.frequency,
     category: category ?? this.category,
@@ -587,7 +585,7 @@ class Chunk extends DataClass implements Insertable<Chunk> {
 }
 
 class ChunksCompanion extends UpdateCompanion<Chunk> {
-  final Value<int?> id;
+  final Value<int> id;
   final Value<String> name;
   final Value<String> frequency;
   final Value<String> category;
@@ -665,7 +663,7 @@ class ChunksCompanion extends UpdateCompanion<Chunk> {
   }
 
   ChunksCompanion copyWith({
-    Value<int?>? id,
+    Value<int>? id,
     Value<String>? name,
     Value<String>? frequency,
     Value<String>? category,
@@ -771,7 +769,7 @@ class Activities extends Table with TableInfo<Activities, Activity> {
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
     'id',
     aliasedName,
-    true,
+    false,
     hasAutoIncrement: true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
@@ -798,7 +796,7 @@ class Activities extends Table with TableInfo<Activities, Activity> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL CHECK (frequency IN (\'everyday\', \'weekly\', \'seasonal\'))',
+        'NOT NULL CHECK (frequency IN (\'onceoff\', \'daily\', \'weekly\', \'seasonal\'))',
   );
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   late final GeneratedColumn<String> date = GeneratedColumn<String>(
@@ -1000,7 +998,7 @@ class Activities extends Table with TableInfo<Activities, Activity> {
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
-      ),
+      )!,
       description: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}description'],
@@ -1051,14 +1049,14 @@ class Activities extends Table with TableInfo<Activities, Activity> {
 
   @override
   List<String> get customConstraints => const [
-    'CHECK((frequency = \'everyday\' AND date IS NULL AND startDate IS NULL AND endDate IS NULL)OR(frequency = \'weekly\' AND selectedDays IS NOT NULL AND startDate IS NULL AND endDate IS NULL)OR(frequency = \'seasonal\' AND date IS NULL AND startDate IS NOT NULL AND endDate IS NOT NULL AND startDate <= endDate))',
+    'CHECK((frequency = \'onceoff\' AND date IS NOT NULL AND selectedDays IS NULL AND startDate IS NULL AND endDate IS NULL)OR(frequency = \'daily\' AND date IS NULL AND selectedDays IS NULL AND startDate IS NULL AND endDate IS NULL)OR(frequency = \'weekly\' AND date IS NULL AND selectedDays IS NOT NULL AND startDate IS NULL AND endDate IS NULL)OR(frequency = \'seasonal\' AND date IS NULL AND selectedDays IS NULL AND startDate IS NOT NULL AND endDate IS NOT NULL AND startDate <= endDate))',
   ];
   @override
   bool get dontWriteConstraints => true;
 }
 
 class Activity extends DataClass implements Insertable<Activity> {
-  final int? id;
+  final int id;
   final String description;
   final String frequency;
   final String? date;
@@ -1070,7 +1068,7 @@ class Activity extends DataClass implements Insertable<Activity> {
   final int completed;
   final int chunkId;
   const Activity({
-    this.id,
+    required this.id,
     required this.description,
     required this.frequency,
     this.date,
@@ -1085,9 +1083,7 @@ class Activity extends DataClass implements Insertable<Activity> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (!nullToAbsent || id != null) {
-      map['id'] = Variable<int>(id);
-    }
+    map['id'] = Variable<int>(id);
     map['description'] = Variable<String>(description);
     map['frequency'] = Variable<String>(frequency);
     if (!nullToAbsent || date != null) {
@@ -1115,7 +1111,7 @@ class Activity extends DataClass implements Insertable<Activity> {
 
   ActivitiesCompanion toCompanion(bool nullToAbsent) {
     return ActivitiesCompanion(
-      id: id == null && nullToAbsent ? const Value.absent() : Value(id),
+      id: Value(id),
       description: Value(description),
       frequency: Value(frequency),
       date: date == null && nullToAbsent ? const Value.absent() : Value(date),
@@ -1145,7 +1141,7 @@ class Activity extends DataClass implements Insertable<Activity> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Activity(
-      id: serializer.fromJson<int?>(json['id']),
+      id: serializer.fromJson<int>(json['id']),
       description: serializer.fromJson<String>(json['description']),
       frequency: serializer.fromJson<String>(json['frequency']),
       date: serializer.fromJson<String?>(json['date']),
@@ -1162,7 +1158,7 @@ class Activity extends DataClass implements Insertable<Activity> {
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'id': serializer.toJson<int?>(id),
+      'id': serializer.toJson<int>(id),
       'description': serializer.toJson<String>(description),
       'frequency': serializer.toJson<String>(frequency),
       'date': serializer.toJson<String?>(date),
@@ -1177,7 +1173,7 @@ class Activity extends DataClass implements Insertable<Activity> {
   }
 
   Activity copyWith({
-    Value<int?> id = const Value.absent(),
+    int? id,
     String? description,
     String? frequency,
     Value<String?> date = const Value.absent(),
@@ -1189,7 +1185,7 @@ class Activity extends DataClass implements Insertable<Activity> {
     int? completed,
     int? chunkId,
   }) => Activity(
-    id: id.present ? id.value : this.id,
+    id: id ?? this.id,
     description: description ?? this.description,
     frequency: frequency ?? this.frequency,
     date: date.present ? date.value : this.date,
@@ -1271,7 +1267,7 @@ class Activity extends DataClass implements Insertable<Activity> {
 }
 
 class ActivitiesCompanion extends UpdateCompanion<Activity> {
-  final Value<int?> id;
+  final Value<int> id;
   final Value<String> description;
   final Value<String> frequency;
   final Value<String?> date;
@@ -1339,7 +1335,7 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   }
 
   ActivitiesCompanion copyWith({
-    Value<int?>? id,
+    Value<int>? id,
     Value<String>? description,
     Value<String>? frequency,
     Value<String?>? date,
@@ -1463,13 +1459,13 @@ abstract class _$AppDb extends GeneratedDatabase {
 
   Selectable<Activity> getActivitiesByChunkId(int var1, String var2) {
     return customSelect(
-      'SELECT * FROM activities WHERE chunkId = ?1 AND(frequency = \'everyday\' OR(frequency = \'onceoff\' AND date = date(?2))OR(frequency = \'seasonal\' AND date(?2) BETWEEN date(startDate) AND date(endDate))OR(frequency = \'weekly\' AND selectedDays LIKE \'%\' || CASE CAST(strftime(\'%w\', ?2) AS INTEGER) WHEN 0 THEN \'Sunday\' WHEN 1 THEN \'Monday\' WHEN 2 THEN \'Tuesday\' WHEN 3 THEN \'Wednesday\' WHEN 4 THEN \'Thursday\' WHEN 5 THEN \'Friday\' ELSE \'Saturday\' END || \'%\'))',
+      'SELECT * FROM activities WHERE chunkId = ?1 AND(frequency = \'daily\' OR(frequency = \'onceoff\' AND date = date(?2))OR(frequency = \'seasonal\' AND date(?2) BETWEEN date(startDate) AND date(endDate))OR(frequency = \'weekly\' AND selectedDays LIKE \'%\' || CASE CAST(strftime(\'%w\', ?2) AS INTEGER) WHEN 0 THEN \'Sunday\' WHEN 1 THEN \'Monday\' WHEN 2 THEN \'Tuesday\' WHEN 3 THEN \'Wednesday\' WHEN 4 THEN \'Thursday\' WHEN 5 THEN \'Friday\' ELSE \'Saturday\' END || \'%\'))',
       variables: [Variable<int>(var1), Variable<String>(var2)],
       readsFrom: {activities},
     ).asyncMap(activities.mapFromRow);
   }
 
-  Future<int> deleteChunk(int? var1) {
+  Future<int> deleteChunk(int var1) {
     return customUpdate(
       'DELETE FROM chunks WHERE id = ?1',
       variables: [Variable<int>(var1)],
@@ -1506,7 +1502,7 @@ abstract class _$AppDb extends GeneratedDatabase {
 
 typedef $ChunksCreateCompanionBuilder =
     ChunksCompanion Function({
-      Value<int?> id,
+      Value<int> id,
       required String name,
       required String frequency,
       required String category,
@@ -1522,7 +1518,7 @@ typedef $ChunksCreateCompanionBuilder =
     });
 typedef $ChunksUpdateCompanionBuilder =
     ChunksCompanion Function({
-      Value<int?> id,
+      Value<int> id,
       Value<String> name,
       Value<String> frequency,
       Value<String> category,
@@ -1551,7 +1547,7 @@ final class $ChunksReferences extends BaseReferences<_$AppDb, Chunks, Chunk> {
     final manager = $ActivitiesTableManager(
       $_db,
       $_db.activities,
-    ).filter((f) => f.chunkId.id.sqlEquals($_itemColumn<int>('id')));
+    ).filter((f) => f.chunkId.id.sqlEquals($_itemColumn<int>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_activitiesRefsTable($_db));
     return ProcessedTableManager(
@@ -1838,7 +1834,7 @@ class $ChunksTableManager
               $ChunksAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int?> id = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> frequency = const Value.absent(),
                 Value<String> category = const Value.absent(),
@@ -1868,7 +1864,7 @@ class $ChunksTableManager
               ),
           createCompanionCallback:
               ({
-                Value<int?> id = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 required String name,
                 required String frequency,
                 required String category,
@@ -1942,7 +1938,7 @@ typedef $ChunksProcessedTableManager =
     >;
 typedef $ActivitiesCreateCompanionBuilder =
     ActivitiesCompanion Function({
-      Value<int?> id,
+      Value<int> id,
       required String description,
       required String frequency,
       Value<String?> date,
@@ -1956,7 +1952,7 @@ typedef $ActivitiesCreateCompanionBuilder =
     });
 typedef $ActivitiesUpdateCompanionBuilder =
     ActivitiesCompanion Function({
-      Value<int?> id,
+      Value<int> id,
       Value<String> description,
       Value<String> frequency,
       Value<String?> date,
@@ -2250,7 +2246,7 @@ class $ActivitiesTableManager
               $ActivitiesAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int?> id = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 Value<String> description = const Value.absent(),
                 Value<String> frequency = const Value.absent(),
                 Value<String?> date = const Value.absent(),
@@ -2276,7 +2272,7 @@ class $ActivitiesTableManager
               ),
           createCompanionCallback:
               ({
-                Value<int?> id = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 required String description,
                 required String frequency,
                 Value<String?> date = const Value.absent(),

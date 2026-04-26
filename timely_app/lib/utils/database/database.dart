@@ -8,7 +8,10 @@ part 'database.g.dart';
 
 @DriftDatabase(include: {'tables.drift'})
 class AppDb extends _$AppDb {
-  AppDb() : super(_openConnection());
+  AppDb._internal() : super(_openConnection());
+  static final AppDb _instance = AppDb._internal();
+
+  factory AppDb() => _instance;
 
   @override
   int get schemaVersion => 2; // bump from 1 to 2

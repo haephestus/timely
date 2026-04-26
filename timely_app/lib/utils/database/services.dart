@@ -2,6 +2,9 @@ import 'package:drift/drift.dart';
 import 'package:timely/models/chunk_activity.dart';
 import 'package:timely/utils/database/database.dart' as db;
 
+// TODO: Chunk addtition overwrites and deletes conflicting chunks - fix
+// TODO: Chunks cannot overlap sametime slots on different days - fix
+
 class ChunkActivityService {
   final db.AppDb database;
 
@@ -54,14 +57,25 @@ class ChunkActivityService {
     int endMinute, {
     int? excludeId,
     String? frequency,
+    String? selectedDays,
   }) async {
-    final all = await database.getAllChunks().get();
+    final all = await getAllChunks();
     final newStart = startHour * 60 + startMinute;
     final newEnd = endHour * 60 + endMinute;
 
     for (final chunk in all) {
       if (excludeId != null && chunk.id == excludeId) continue;
       if (frequency != null && chunk.frequency != frequency) continue;
+      if (frequency == 'weekly' &&
+          selectedDays != null &&
+          chunk.selectedDays != null) {
+        final newDays = selectedDays.split(',').map((d) => d.trim()).toSet();
+        final existingDays = chunk.selectedDays!
+            .split(',')
+            .map((d) => d.trim())
+            .toSet();
+        if (newDays.intersection(existingDays).isEmpty) continue;
+      }
       final cStart = (chunk.startHour ?? 0) * 60 + chunk.startMinute!;
       final cEnd = (chunk.endHour ?? 0) * 60 + chunk.endMinute!;
       if (newStart < cEnd && newEnd > cStart) return chunk;
@@ -74,7 +88,7 @@ class ChunkActivityService {
     String startTime,
     String endTime,
   ) async {
-    final all = await database.getAllChunks().get();
+    final all = await getAllChunks();
     final chunk = all.where((c) => c.id == chunkId).firstOrNull;
     if (chunk == null) return false;
 
@@ -102,8 +116,17 @@ class ChunkActivityService {
     final dbActivities = await _getActivitiesFromDb(chunkId, date);
     return dbActivities.map((a) {
       switch (a.frequency) {
-        case 'everyday':
-          return EverydayActivity(
+        case 'onceoff':
+          return DailyActivity(
+            id: a.id,
+            description: a.description,
+            completed: a.completed == 1,
+            date: a.date != null ? DateTime.parse(a.date!) : null,
+            startTime: a.startTime,
+            endTime: a.endTime,
+          );
+        case 'daily':
+          return DailyActivity(
             id: a.id,
             description: a.description,
             completed: a.completed == 1,
@@ -112,7 +135,7 @@ class ChunkActivityService {
             endTime: a.endTime,
           );
         case 'weekly':
-          return PeriodicActivity(
+          return WeeklyActivity(
             id: a.id,
             description: a.description,
             completed: a.completed == 1,
@@ -121,7 +144,7 @@ class ChunkActivityService {
             endTime: a.endTime,
           );
         case 'seasonal':
-          return RangeActivity(
+          return SeasonalActivity(
             id: a.id,
             description: a.description,
             completed: a.completed == 1,
@@ -142,7 +165,7 @@ class ChunkActivityService {
   */
 
   // TODO: delete activity, batch delete activity
-  Future<void> addEverydayActivity({
+  Future<void> addDailyActivity({
     required int chunkId,
     required String description,
     required String startTime,
@@ -153,7 +176,7 @@ class ChunkActivityService {
       b.insert(
         database.activities,
         db.ActivitiesCompanion(
-          frequency: const Value('everyday'),
+          frequency: const Value('daily'),
           description: Value(description),
           chunkId: Value(chunkId),
           startTime: Value(startTime),
@@ -167,7 +190,7 @@ class ChunkActivityService {
     });
   }
 
-  Future<void> updateEverydayActivity({
+  Future<void> updateDailyActivity({
     required int id,
     required String date,
     required int chunkId,
@@ -205,7 +228,73 @@ class ChunkActivityService {
     });
   }
 
-  Future<void> addPeriodicActivity({
+  Future<void> addOnceOffActivity({
+    required int chunkId,
+    required String description,
+    required String startTime,
+    required String endTime,
+    required String date,
+  }) async {
+    await _validateActivityTimes(chunkId, startTime, endTime);
+    await database.batch((b) {
+      b.insert(
+        database.activities,
+        db.ActivitiesCompanion(
+          frequency: const Value('onceoff'),
+          description: Value(description),
+          chunkId: Value(chunkId),
+          startTime: Value(startTime),
+          endTime: Value(endTime),
+          startDate: const Value.absent(),
+          date: Value(date),
+          endDate: const Value.absent(),
+          completed: const Value(0),
+        ),
+      );
+    });
+  }
+
+  Future<void> updateOnceOffActivity({
+    required int id,
+    required String date,
+    required int chunkId,
+    required String frequency,
+    required String description,
+    required String startTime,
+    required String endTime,
+  }) async {
+    final original = await (database.select(
+      database.activities,
+    )..where((a) => a.id.equals(id))).getSingle();
+
+    await _validateActivityTimes(
+      chunkId,
+      startTime,
+      endTime,
+      excludeId: id,
+      excludedDescription: original.description,
+    );
+
+    await database.batch((b) {
+      b.update(
+        database.activities,
+        db.ActivitiesCompanion(
+          description: Value(description),
+          frequency: Value(frequency),
+          startTime: Value(startTime),
+          endTime: Value(endTime),
+          date: Value(date),
+        ),
+        where: (tbl) =>
+            tbl.date.equals(date) &
+            tbl.chunkId.equals(chunkId) &
+            tbl.frequency.equals(frequency) &
+            tbl.description.equals(original.description),
+      );
+    });
+  }
+
+  Future<void> addWeeklyActivity({
     required String weekday,
     required int chunkId,
     required String description,
@@ -230,7 +319,7 @@ class ChunkActivityService {
         );
   }
 
-  Future<void> updatePeriodicActivity({
+  Future<void> updateWeeklyActivity({
     required int id,
     required String weekday,
     required int chunkId,
@@ -255,7 +344,7 @@ class ChunkActivityService {
     );
   }
 
-  Future<void> addRangeActivity({
+  Future<void> addSeasonalActivity({
     required DateTime startDate,
     required DateTime endDate,
     required int chunkId,
@@ -281,7 +370,7 @@ class ChunkActivityService {
         );
   }
 
-  Future<void> updateRangeActivity({
+  Future<void> updateSeasonalActivity({
     required int id,
     required String startDate,
     required String endDate,

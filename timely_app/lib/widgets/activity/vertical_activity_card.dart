@@ -10,6 +10,7 @@ import 'package:timely/utils/settings_provider.dart';
 class VerticalActivityCard extends StatefulWidget {
   final ChunkActivity? activity;
   final VoidCallback? onDeleted;
+  final VoidCallback? onActivityChanged;
   final model.Chunk chunk;
   final AppDb db;
 
@@ -17,7 +18,9 @@ class VerticalActivityCard extends StatefulWidget {
     required this.activity,
     required this.chunk,
     required this.db,
+    this.onActivityChanged,
     this.onDeleted,
+
     super.key,
   });
 
@@ -33,19 +36,25 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
 
   ({Color bg, Color accent, String label, IconData icon}) get _scheme {
     return switch (widget.activity!) {
-      EverydayActivity() => (
+      OnceOffActivity() => (
         bg: const Color(0xFFD4B896),
         accent: const Color(0xFFA07850),
         label: 'Daily',
         icon: Icons.repeat,
       ),
-      PeriodicActivity() => (
+      DailyActivity() => (
+        bg: const Color(0xFFD4B896),
+        accent: const Color(0xFFA07850),
+        label: 'Daily',
+        icon: Icons.repeat,
+      ),
+      WeeklyActivity() => (
         bg: const Color(0xFFBFCFD4),
         accent: const Color(0xFF7098A8),
         label: 'Periodic',
         icon: Icons.calendar_month,
       ),
-      RangeActivity() => (
+      SeasonalActivity() => (
         bg: const Color(0xFFD4C5A9),
         accent: const Color(0xFF8B7355),
         label: 'Range',
@@ -95,9 +104,7 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete activity?'),
-        content: const Text(
-          'Do you want to delete just this occurrence or all occurrences of this activity?',
-        ),
+        content: Text('Delete ${widget.activity!.description}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -108,8 +115,9 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
               Navigator.pop(context);
               await _deleteActivity();
             },
-            child: const Text('This one'),
+            child: const Text('Delete'),
           ),
+          /*
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
@@ -117,9 +125,19 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
             },
             child: const Text('All', style: TextStyle(color: Colors.red)),
           ),
+          */
         ],
       ),
     );
+  }
+
+  Future<void> _toggleCompletion(value) async {
+    final newValue = value ? 0 : 1;
+    await (widget.db.update(widget.db.activities)
+          ..where((a) => a.id.equals(widget.activity!.id!)))
+        .write(ActivitiesCompanion(completed: drift.Value(newValue)));
+    if (!mounted) return;
+    widget.onActivityChanged?.call();
   }
 
   @override
@@ -196,14 +214,15 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
               });
             }
           },
+          onLongPress: () => _toggleCompletion(widget.activity!.completed),
           child: Transform.translate(
             offset: Offset(-_dragOffset, 0),
             child: Container(
               margin: const EdgeInsets.symmetric(vertical: 6),
-              height: 140,
-              padding: const EdgeInsets.all(16),
+              height: 128,
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: s.bg,
+                color: widget.activity!.completed ? Colors.grey.shade500 : s.bg,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
@@ -211,40 +230,13 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
                 children: [
                   // ── LEFT COLUMN: description + frequency icon ────
                   Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                activity.description.isEmpty
-                                    ? 'No description'
-                                    : activity.description,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: s.accent.withAlpha(20),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Icon(s.icon, size: 18, color: s.accent),
-                            ),
-                          ],
-                        ),
-                      ],
+                    flex: 2,
+                    child: _TimeColumn(
+                      is24HourFormat: settings.is24HourFormat,
+                      accent: Colors.white,
+                      activity: activity,
+                      startTime: _parseTime(activity.startTime),
+                      endTime: _parseTime(activity.endTime),
                     ),
                   ),
 
@@ -255,16 +247,45 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
                     margin: const EdgeInsets.symmetric(horizontal: 14),
                     color: Colors.black26,
                   ),
-
                   // ── RIGHT COLUMN: times + progress bar ──────
                   Expanded(
-                    flex: 2,
-                    child: _TimeColumn(
-                      is24HourFormat: settings.is24HourFormat,
-                      accent: s.accent,
-                      activity: activity,
-                      startTime: _parseTime(activity.startTime),
-                      endTime: _parseTime(activity.endTime),
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // ICON container
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(s.icon, size: 18, color: Colors.white),
+                        ),
+                        Expanded(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  activity.description.isEmpty
+                                      ? 'No description'
+                                      : activity.description,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -335,60 +356,71 @@ class _TimeColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Start / end time labels
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _TimeLabel(time: _fmt(startTime), label: 'Start', accent: accent),
-            _TimeLabel(
-              time: _fmt(endTime),
-              label: 'End',
-              accent: accent,
-              alignRight: true,
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        if (_isActive) ...[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: _progress,
-              minHeight: 8,
-              backgroundColor: accent.withAlpha(20),
-              valueColor: AlwaysStoppedAnimation<Color>(accent),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Center(
-            child: Text(
-              'In progress',
-              style: TextStyle(
-                fontSize: 10,
-                color: accent.withAlpha(70),
-                fontWeight: FontWeight.w500,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black38,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _TimeLabel(time: _fmt(startTime), label: 'Start', accent: accent),
+              _TimeLabel(
+                time: _fmt(endTime),
+                label: 'End',
+                accent: accent,
+                alignRight: true,
               ),
-            ),
+            ],
           ),
-        ] else ...[
-          Center(
-            child: Text(
-              _durationText,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.black45,
-              ),
-            ),
+
+          const SizedBox(height: 8),
+
+          Expanded(
+            child: _isActive
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: _progress,
+                          minHeight: 8,
+                          backgroundColor: Colors.grey.shade400.withAlpha(175),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'In progress',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: accent.withAlpha(70),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  )
+                : Center(
+                    child: Text(
+                      _durationText,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
           ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -418,7 +450,7 @@ class _TimeLabel extends StatelessWidget {
         Text(
           time,
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 8,
             fontWeight: FontWeight.w700,
             color: Colors.black,
           ),
@@ -427,7 +459,7 @@ class _TimeLabel extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 8,
               color: Colors.black45,
               fontWeight: FontWeight.w600,
             ),

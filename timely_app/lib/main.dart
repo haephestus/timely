@@ -9,7 +9,9 @@ import 'package:timely/utils/settings_provider.dart';
 import 'package:timely/widgets/navbar.dart';
 import 'package:provider/provider.dart';
 import 'package:alarm/utils/alarm_set.dart';
+import 'package:flutter/rendering.dart';
 
+final navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = SettingsProvider();
@@ -24,6 +26,7 @@ void main() async {
 void _listenForAlarms() {
   Alarm.ringing.listen((AlarmSet alarmSet) {
     for (final alarm in alarmSet.alarms) {
+      // Reschedule for next day
       Alarm.set(
         alarmSettings: AlarmSettings(
           id: alarm.id,
@@ -35,6 +38,15 @@ void _listenForAlarms() {
           volumeSettings: alarm.volumeSettings,
         ),
       );
+
+      /*Show your custom screen
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => AlarmScreen(alarm: alarm),
+        ),
+      );
+      */
     }
   });
 }
@@ -61,19 +73,30 @@ class TimelyRoot extends StatefulWidget {
 }
 
 class _TimelyRootState extends State<TimelyRoot> {
-  int _selectedIndex = 0;
+  int _selectedScreen = 0;
   Chunk? _selectedChunk;
 
   final _homekey = GlobalKey<HomePageState>();
   late List<Widget> _screens = [HomePage(), Settings()];
+  final _navbarVisible = ValueNotifier<bool>(true);
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-
+    _scrollController.addListener(() {
+      if (_scrollController.position.userScrollDirection ==
+          ScrollDirection.reverse) {
+        _navbarVisible.value = false;
+      } else if (_scrollController.position.userScrollDirection ==
+          ScrollDirection.forward) {
+        _navbarVisible.value = true;
+      }
+    });
     _screens = [
       HomePage(
         key: _homekey,
+        scrollController: _scrollController, // pass down
         onChunkSelected: (chunk) {
           setState(() => _selectedChunk = chunk);
         },
@@ -108,16 +131,29 @@ class _TimelyRootState extends State<TimelyRoot> {
     return Scaffold(
       body: Stack(
         children: [
-          _screens[_selectedIndex],
-          Navbar(
-            selectedIndex: _selectedIndex,
-            onItemSelected: (index) => setState(() => _selectedIndex = index),
-            items: [
-              NavItem(name: "Home", icon: Icons.home_outlined),
-              NavItem(name: "Profile", icon: Icons.person_4),
-            ],
-            onAddChunk: _selectedIndex == 0 ? _addChunk : null,
-            onAddActivity: _selectedChunk != null ? _addActivity : null,
+          _screens[_selectedScreen],
+          ValueListenableBuilder<bool>(
+            valueListenable: _navbarVisible,
+            builder: (context, visible, child) {
+              return AnimatedSlide(
+                offset: visible ? Offset.zero : const Offset(0, 1),
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                child: Navbar(
+                  selectedIndex: _selectedScreen,
+                  onItemSelected: (index) {
+                    setState(() => _selectedScreen = index);
+                    _navbarVisible.value = true;
+                  },
+                  items: [
+                    NavItem(name: "Home", icon: Icons.home_outlined),
+                    NavItem(name: "Profile", icon: Icons.person_4),
+                  ],
+                  onAddChunk: _selectedScreen == 0 ? _addChunk : null,
+                  onAddActivity: _selectedChunk != null ? _addActivity : null,
+                ),
+              );
+            },
           ),
         ],
       ),

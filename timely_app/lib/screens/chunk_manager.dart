@@ -10,6 +10,7 @@ import 'package:timely/utils/settings_provider.dart';
 import 'package:timely/utils/calendar_utils.dart' as cal;
 import 'package:day_picker/day_picker.dart';
 
+// FIX: chunk of different categories and same times can overlap - prevent that
 class ChunkManager extends StatefulWidget {
   final bool isEdit;
   final model.Chunk? chunk;
@@ -330,6 +331,10 @@ class _ChunkManagerState extends State<ChunkManager> {
       endTime.hour,
       endTime.minute,
       excludeId: widget.isEdit ? widget.chunk?.chunkId : null,
+      frequency: _frequency.name,
+      selectedDays: _frequency == model.ChunkFrequency.weekly
+          ? _weekdays.toString()
+          : null,
     );
     if (overlapping != null) {
       if (!mounted) return;
