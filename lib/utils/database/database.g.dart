@@ -862,18 +862,6 @@ class Activities extends Table with TableInfo<Activities, Activity> {
     requiredDuringInsert: false,
     $customConstraints: '',
   );
-  static const VerificationMeta _completedMeta = const VerificationMeta(
-    'completed',
-  );
-  late final GeneratedColumn<int> completed = GeneratedColumn<int>(
-    'completed',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL DEFAULT 0',
-    defaultValue: const CustomExpression('0'),
-  );
   static const VerificationMeta _chunkIdMeta = const VerificationMeta(
     'chunkId',
   );
@@ -896,7 +884,6 @@ class Activities extends Table with TableInfo<Activities, Activity> {
     endDate,
     startTime,
     endTime,
-    completed,
     chunkId,
   ];
   @override
@@ -972,12 +959,6 @@ class Activities extends Table with TableInfo<Activities, Activity> {
         endTime.isAcceptableOrUnknown(data['endTime']!, _endTimeMeta),
       );
     }
-    if (data.containsKey('completed')) {
-      context.handle(
-        _completedMeta,
-        completed.isAcceptableOrUnknown(data['completed']!, _completedMeta),
-      );
-    }
     if (data.containsKey('chunkId')) {
       context.handle(
         _chunkIdMeta,
@@ -1031,10 +1012,6 @@ class Activities extends Table with TableInfo<Activities, Activity> {
         DriftSqlType.string,
         data['${effectivePrefix}endTime'],
       ),
-      completed: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}completed'],
-      )!,
       chunkId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}chunkId'],
@@ -1065,7 +1042,6 @@ class Activity extends DataClass implements Insertable<Activity> {
   final String? endDate;
   final String? startTime;
   final String? endTime;
-  final int completed;
   final int chunkId;
   const Activity({
     required this.id,
@@ -1077,7 +1053,6 @@ class Activity extends DataClass implements Insertable<Activity> {
     this.endDate,
     this.startTime,
     this.endTime,
-    required this.completed,
     required this.chunkId,
   });
   @override
@@ -1104,7 +1079,6 @@ class Activity extends DataClass implements Insertable<Activity> {
     if (!nullToAbsent || endTime != null) {
       map['endTime'] = Variable<String>(endTime);
     }
-    map['completed'] = Variable<int>(completed);
     map['chunkId'] = Variable<int>(chunkId);
     return map;
   }
@@ -1130,7 +1104,6 @@ class Activity extends DataClass implements Insertable<Activity> {
       endTime: endTime == null && nullToAbsent
           ? const Value.absent()
           : Value(endTime),
-      completed: Value(completed),
       chunkId: Value(chunkId),
     );
   }
@@ -1150,7 +1123,6 @@ class Activity extends DataClass implements Insertable<Activity> {
       endDate: serializer.fromJson<String?>(json['endDate']),
       startTime: serializer.fromJson<String?>(json['startTime']),
       endTime: serializer.fromJson<String?>(json['endTime']),
-      completed: serializer.fromJson<int>(json['completed']),
       chunkId: serializer.fromJson<int>(json['chunkId']),
     );
   }
@@ -1167,7 +1139,6 @@ class Activity extends DataClass implements Insertable<Activity> {
       'endDate': serializer.toJson<String?>(endDate),
       'startTime': serializer.toJson<String?>(startTime),
       'endTime': serializer.toJson<String?>(endTime),
-      'completed': serializer.toJson<int>(completed),
       'chunkId': serializer.toJson<int>(chunkId),
     };
   }
@@ -1182,7 +1153,6 @@ class Activity extends DataClass implements Insertable<Activity> {
     Value<String?> endDate = const Value.absent(),
     Value<String?> startTime = const Value.absent(),
     Value<String?> endTime = const Value.absent(),
-    int? completed,
     int? chunkId,
   }) => Activity(
     id: id ?? this.id,
@@ -1194,7 +1164,6 @@ class Activity extends DataClass implements Insertable<Activity> {
     endDate: endDate.present ? endDate.value : this.endDate,
     startTime: startTime.present ? startTime.value : this.startTime,
     endTime: endTime.present ? endTime.value : this.endTime,
-    completed: completed ?? this.completed,
     chunkId: chunkId ?? this.chunkId,
   );
   Activity copyWithCompanion(ActivitiesCompanion data) {
@@ -1212,7 +1181,6 @@ class Activity extends DataClass implements Insertable<Activity> {
       endDate: data.endDate.present ? data.endDate.value : this.endDate,
       startTime: data.startTime.present ? data.startTime.value : this.startTime,
       endTime: data.endTime.present ? data.endTime.value : this.endTime,
-      completed: data.completed.present ? data.completed.value : this.completed,
       chunkId: data.chunkId.present ? data.chunkId.value : this.chunkId,
     );
   }
@@ -1229,7 +1197,6 @@ class Activity extends DataClass implements Insertable<Activity> {
           ..write('endDate: $endDate, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime, ')
-          ..write('completed: $completed, ')
           ..write('chunkId: $chunkId')
           ..write(')'))
         .toString();
@@ -1246,7 +1213,6 @@ class Activity extends DataClass implements Insertable<Activity> {
     endDate,
     startTime,
     endTime,
-    completed,
     chunkId,
   );
   @override
@@ -1262,7 +1228,6 @@ class Activity extends DataClass implements Insertable<Activity> {
           other.endDate == this.endDate &&
           other.startTime == this.startTime &&
           other.endTime == this.endTime &&
-          other.completed == this.completed &&
           other.chunkId == this.chunkId);
 }
 
@@ -1276,7 +1241,6 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
   final Value<String?> endDate;
   final Value<String?> startTime;
   final Value<String?> endTime;
-  final Value<int> completed;
   final Value<int> chunkId;
   const ActivitiesCompanion({
     this.id = const Value.absent(),
@@ -1288,7 +1252,6 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.endDate = const Value.absent(),
     this.startTime = const Value.absent(),
     this.endTime = const Value.absent(),
-    this.completed = const Value.absent(),
     this.chunkId = const Value.absent(),
   });
   ActivitiesCompanion.insert({
@@ -1301,7 +1264,6 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     this.endDate = const Value.absent(),
     this.startTime = const Value.absent(),
     this.endTime = const Value.absent(),
-    this.completed = const Value.absent(),
     required int chunkId,
   }) : description = Value(description),
        frequency = Value(frequency),
@@ -1316,7 +1278,6 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Expression<String>? endDate,
     Expression<String>? startTime,
     Expression<String>? endTime,
-    Expression<int>? completed,
     Expression<int>? chunkId,
   }) {
     return RawValuesInsertable({
@@ -1329,7 +1290,6 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       if (endDate != null) 'endDate': endDate,
       if (startTime != null) 'startTime': startTime,
       if (endTime != null) 'endTime': endTime,
-      if (completed != null) 'completed': completed,
       if (chunkId != null) 'chunkId': chunkId,
     });
   }
@@ -1344,7 +1304,6 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     Value<String?>? endDate,
     Value<String?>? startTime,
     Value<String?>? endTime,
-    Value<int>? completed,
     Value<int>? chunkId,
   }) {
     return ActivitiesCompanion(
@@ -1357,7 +1316,6 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
       endDate: endDate ?? this.endDate,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
-      completed: completed ?? this.completed,
       chunkId: chunkId ?? this.chunkId,
     );
   }
@@ -1392,9 +1350,6 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
     if (endTime.present) {
       map['endTime'] = Variable<String>(endTime.value);
     }
-    if (completed.present) {
-      map['completed'] = Variable<int>(completed.value);
-    }
     if (chunkId.present) {
       map['chunkId'] = Variable<int>(chunkId.value);
     }
@@ -1413,8 +1368,375 @@ class ActivitiesCompanion extends UpdateCompanion<Activity> {
           ..write('endDate: $endDate, ')
           ..write('startTime: $startTime, ')
           ..write('endTime: $endTime, ')
-          ..write('completed: $completed, ')
           ..write('chunkId: $chunkId')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class Completions extends Table with TableInfo<Completions, Completion> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  Completions(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    $customConstraints: 'PRIMARY KEY AUTOINCREMENT',
+  );
+  static const VerificationMeta _activityIdMeta = const VerificationMeta(
+    'activityId',
+  );
+  late final GeneratedColumn<int> activityId = GeneratedColumn<int>(
+    'activityId',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES activities(id)ON DELETE CASCADE',
+  );
+  static const VerificationMeta _completedDateMeta = const VerificationMeta(
+    'completedDate',
+  );
+  late final GeneratedColumn<String> completedDate = GeneratedColumn<String>(
+    'completedDate',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: 'NOT NULL DEFAULT (date(\'now\'))',
+    defaultValue: const CustomExpression('date(\'now\')'),
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  late final GeneratedColumn<String> completedAt = GeneratedColumn<String>(
+    'completedAt',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    activityId,
+    completedDate,
+    completedAt,
+    note,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'completions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Completion> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('activityId')) {
+      context.handle(
+        _activityIdMeta,
+        activityId.isAcceptableOrUnknown(data['activityId']!, _activityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_activityIdMeta);
+    }
+    if (data.containsKey('completedDate')) {
+      context.handle(
+        _completedDateMeta,
+        completedDate.isAcceptableOrUnknown(
+          data['completedDate']!,
+          _completedDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('completedAt')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completedAt']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {activityId, completedDate},
+  ];
+  @override
+  Completion map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Completion(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      activityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}activityId'],
+      )!,
+      completedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}completedDate'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}completedAt'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+    );
+  }
+
+  @override
+  Completions createAlias(String alias) {
+    return Completions(attachedDatabase, alias);
+  }
+
+  @override
+  List<String> get customConstraints => const [
+    'UNIQUE(activityId, completedDate)',
+  ];
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class Completion extends DataClass implements Insertable<Completion> {
+  final int id;
+  final int activityId;
+  final String completedDate;
+  final String? completedAt;
+  final String? note;
+  const Completion({
+    required this.id,
+    required this.activityId,
+    required this.completedDate,
+    this.completedAt,
+    this.note,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['activityId'] = Variable<int>(activityId);
+    map['completedDate'] = Variable<String>(completedDate);
+    if (!nullToAbsent || completedAt != null) {
+      map['completedAt'] = Variable<String>(completedAt);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    return map;
+  }
+
+  CompletionsCompanion toCompanion(bool nullToAbsent) {
+    return CompletionsCompanion(
+      id: Value(id),
+      activityId: Value(activityId),
+      completedDate: Value(completedDate),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+    );
+  }
+
+  factory Completion.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Completion(
+      id: serializer.fromJson<int>(json['id']),
+      activityId: serializer.fromJson<int>(json['activityId']),
+      completedDate: serializer.fromJson<String>(json['completedDate']),
+      completedAt: serializer.fromJson<String?>(json['completedAt']),
+      note: serializer.fromJson<String?>(json['note']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'activityId': serializer.toJson<int>(activityId),
+      'completedDate': serializer.toJson<String>(completedDate),
+      'completedAt': serializer.toJson<String?>(completedAt),
+      'note': serializer.toJson<String?>(note),
+    };
+  }
+
+  Completion copyWith({
+    int? id,
+    int? activityId,
+    String? completedDate,
+    Value<String?> completedAt = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+  }) => Completion(
+    id: id ?? this.id,
+    activityId: activityId ?? this.activityId,
+    completedDate: completedDate ?? this.completedDate,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    note: note.present ? note.value : this.note,
+  );
+  Completion copyWithCompanion(CompletionsCompanion data) {
+    return Completion(
+      id: data.id.present ? data.id.value : this.id,
+      activityId: data.activityId.present
+          ? data.activityId.value
+          : this.activityId,
+      completedDate: data.completedDate.present
+          ? data.completedDate.value
+          : this.completedDate,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      note: data.note.present ? data.note.value : this.note,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Completion(')
+          ..write('id: $id, ')
+          ..write('activityId: $activityId, ')
+          ..write('completedDate: $completedDate, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('note: $note')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, activityId, completedDate, completedAt, note);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Completion &&
+          other.id == this.id &&
+          other.activityId == this.activityId &&
+          other.completedDate == this.completedDate &&
+          other.completedAt == this.completedAt &&
+          other.note == this.note);
+}
+
+class CompletionsCompanion extends UpdateCompanion<Completion> {
+  final Value<int> id;
+  final Value<int> activityId;
+  final Value<String> completedDate;
+  final Value<String?> completedAt;
+  final Value<String?> note;
+  const CompletionsCompanion({
+    this.id = const Value.absent(),
+    this.activityId = const Value.absent(),
+    this.completedDate = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.note = const Value.absent(),
+  });
+  CompletionsCompanion.insert({
+    this.id = const Value.absent(),
+    required int activityId,
+    this.completedDate = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.note = const Value.absent(),
+  }) : activityId = Value(activityId);
+  static Insertable<Completion> custom({
+    Expression<int>? id,
+    Expression<int>? activityId,
+    Expression<String>? completedDate,
+    Expression<String>? completedAt,
+    Expression<String>? note,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (activityId != null) 'activityId': activityId,
+      if (completedDate != null) 'completedDate': completedDate,
+      if (completedAt != null) 'completedAt': completedAt,
+      if (note != null) 'note': note,
+    });
+  }
+
+  CompletionsCompanion copyWith({
+    Value<int>? id,
+    Value<int>? activityId,
+    Value<String>? completedDate,
+    Value<String?>? completedAt,
+    Value<String?>? note,
+  }) {
+    return CompletionsCompanion(
+      id: id ?? this.id,
+      activityId: activityId ?? this.activityId,
+      completedDate: completedDate ?? this.completedDate,
+      completedAt: completedAt ?? this.completedAt,
+      note: note ?? this.note,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (activityId.present) {
+      map['activityId'] = Variable<int>(activityId.value);
+    }
+    if (completedDate.present) {
+      map['completedDate'] = Variable<String>(completedDate.value);
+    }
+    if (completedAt.present) {
+      map['completedAt'] = Variable<String>(completedAt.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CompletionsCompanion(')
+          ..write('id: $id, ')
+          ..write('activityId: $activityId, ')
+          ..write('completedDate: $completedDate, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('note: $note')
           ..write(')'))
         .toString();
   }
@@ -1425,6 +1747,7 @@ abstract class _$AppDb extends GeneratedDatabase {
   $AppDbManager get managers => $AppDbManager(this);
   late final Chunks chunks = Chunks(this);
   late final Activities activities = Activities(this);
+  late final Completions completions = Completions(this);
   Selectable<Chunk> getAllChunks() {
     return customSelect(
       'SELECT * FROM chunks',
@@ -1459,9 +1782,20 @@ abstract class _$AppDb extends GeneratedDatabase {
 
   Selectable<Activity> getActivitiesByChunkId(int var1, String var2) {
     return customSelect(
-      'SELECT * FROM activities WHERE chunkId = ?1 AND(frequency = \'daily\' OR(frequency = \'onceoff\' AND date = date(?2))OR(frequency = \'seasonal\' AND date(?2) BETWEEN date(startDate) AND date(endDate))OR(frequency = \'weekly\' AND selectedDays LIKE \'%\' || CASE CAST(strftime(\'%w\', ?2) AS INTEGER) WHEN 0 THEN \'Sunday\' WHEN 1 THEN \'Monday\' WHEN 2 THEN \'Tuesday\' WHEN 3 THEN \'Wednesday\' WHEN 4 THEN \'Thursday\' WHEN 5 THEN \'Friday\' ELSE \'Saturday\' END || \'%\'))',
+      'SELECT a.* FROM activities AS a LEFT JOIN completions AS c ON c.activityId = a.id AND c.completedDate = date(?2) WHERE a.chunkId = ?1 AND c.id IS NULL AND(frequency = \'daily\' OR(frequency = \'onceoff\' AND date = date(?2))OR(frequency = \'seasonal\' AND date(?2) BETWEEN date(startDate) AND date(endDate))OR(frequency = \'weekly\' AND selectedDays LIKE \'%\' || CASE CAST(strftime(\'%w\', ?2) AS INTEGER) WHEN 0 THEN \'Sunday\' WHEN 1 THEN \'Monday\' WHEN 2 THEN \'Tuesday\' WHEN 3 THEN \'Wednesday\' WHEN 4 THEN \'Thursday\' WHEN 5 THEN \'Friday\' ELSE \'Saturday\' END || \'%\'))',
       variables: [Variable<int>(var1), Variable<String>(var2)],
-      readsFrom: {activities},
+      readsFrom: {activities, completions},
+    ).asyncMap(activities.mapFromRow);
+  }
+
+  Selectable<Activity> getActivitiesByChunkIdWithCompleted(
+    int var1,
+    String var2,
+  ) {
+    return customSelect(
+      'SELECT a.* FROM activities AS a LEFT JOIN completions AS c ON c.activityId = a.id AND c.completedDate = date(?2) WHERE a.chunkId = ?1 AND(frequency = \'daily\' OR(frequency = \'onceoff\' AND date = date(?2))OR(frequency = \'seasonal\' AND date(?2) BETWEEN date(startDate) AND date(endDate))OR(frequency = \'weekly\' AND selectedDays LIKE \'%\' || CASE CAST(strftime(\'%w\', ?2) AS INTEGER) WHEN 0 THEN \'Sunday\' WHEN 1 THEN \'Monday\' WHEN 2 THEN \'Tuesday\' WHEN 3 THEN \'Wednesday\' WHEN 4 THEN \'Thursday\' WHEN 5 THEN \'Friday\' ELSE \'Saturday\' END || \'%\'))',
+      variables: [Variable<int>(var1), Variable<String>(var2)],
+      readsFrom: {activities, completions},
     ).asyncMap(activities.mapFromRow);
   }
 
@@ -1487,7 +1821,11 @@ abstract class _$AppDb extends GeneratedDatabase {
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [chunks, activities];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    chunks,
+    activities,
+    completions,
+  ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
     WritePropagation(
@@ -1496,6 +1834,13 @@ abstract class _$AppDb extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('activities', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'activities',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('completions', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -1947,7 +2292,6 @@ typedef $ActivitiesCreateCompanionBuilder =
       Value<String?> endDate,
       Value<String?> startTime,
       Value<String?> endTime,
-      Value<int> completed,
       required int chunkId,
     });
 typedef $ActivitiesUpdateCompanionBuilder =
@@ -1961,7 +2305,6 @@ typedef $ActivitiesUpdateCompanionBuilder =
       Value<String?> endDate,
       Value<String?> startTime,
       Value<String?> endTime,
-      Value<int> completed,
       Value<int> chunkId,
     });
 
@@ -1984,6 +2327,27 @@ final class $ActivitiesReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<Completions, List<Completion>>
+  _completionsRefsTable(_$AppDb db) => MultiTypedResultKey.fromTable(
+    db.completions,
+    aliasName: $_aliasNameGenerator(
+      db.activities.id,
+      db.completions.activityId,
+    ),
+  );
+
+  $CompletionsProcessedTableManager get completionsRefs {
+    final manager = $CompletionsTableManager(
+      $_db,
+      $_db.completions,
+    ).filter((f) => f.activityId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_completionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -2041,11 +2405,6 @@ class $ActivitiesFilterComposer extends Composer<_$AppDb, Activities> {
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get completed => $composableBuilder(
-    column: $table.completed,
-    builder: (column) => ColumnFilters(column),
-  );
-
   $ChunksFilterComposer get chunkId {
     final $ChunksFilterComposer composer = $composerBuilder(
       composer: this,
@@ -2067,6 +2426,31 @@ class $ActivitiesFilterComposer extends Composer<_$AppDb, Activities> {
           ),
     );
     return composer;
+  }
+
+  Expression<bool> completionsRefs(
+    Expression<bool> Function($CompletionsFilterComposer f) f,
+  ) {
+    final $CompletionsFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.completions,
+      getReferencedColumn: (t) => t.activityId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CompletionsFilterComposer(
+            $db: $db,
+            $table: $db.completions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -2120,11 +2504,6 @@ class $ActivitiesOrderingComposer extends Composer<_$AppDb, Activities> {
 
   ColumnOrderings<String> get endTime => $composableBuilder(
     column: $table.endTime,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get completed => $composableBuilder(
-    column: $table.completed,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2191,9 +2570,6 @@ class $ActivitiesAnnotationComposer extends Composer<_$AppDb, Activities> {
   GeneratedColumn<String> get endTime =>
       $composableBuilder(column: $table.endTime, builder: (column) => column);
 
-  GeneratedColumn<int> get completed =>
-      $composableBuilder(column: $table.completed, builder: (column) => column);
-
   $ChunksAnnotationComposer get chunkId {
     final $ChunksAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -2216,6 +2592,31 @@ class $ActivitiesAnnotationComposer extends Composer<_$AppDb, Activities> {
     );
     return composer;
   }
+
+  Expression<T> completionsRefs<T extends Object>(
+    Expression<T> Function($CompletionsAnnotationComposer a) f,
+  ) {
+    final $CompletionsAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.completions,
+      getReferencedColumn: (t) => t.activityId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $CompletionsAnnotationComposer(
+            $db: $db,
+            $table: $db.completions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $ActivitiesTableManager
@@ -2231,7 +2632,7 @@ class $ActivitiesTableManager
           $ActivitiesUpdateCompanionBuilder,
           (Activity, $ActivitiesReferences),
           Activity,
-          PrefetchHooks Function({bool chunkId})
+          PrefetchHooks Function({bool chunkId, bool completionsRefs})
         > {
   $ActivitiesTableManager(_$AppDb db, Activities table)
     : super(
@@ -2255,7 +2656,6 @@ class $ActivitiesTableManager
                 Value<String?> endDate = const Value.absent(),
                 Value<String?> startTime = const Value.absent(),
                 Value<String?> endTime = const Value.absent(),
-                Value<int> completed = const Value.absent(),
                 Value<int> chunkId = const Value.absent(),
               }) => ActivitiesCompanion(
                 id: id,
@@ -2267,7 +2667,6 @@ class $ActivitiesTableManager
                 endDate: endDate,
                 startTime: startTime,
                 endTime: endTime,
-                completed: completed,
                 chunkId: chunkId,
               ),
           createCompanionCallback:
@@ -2281,7 +2680,6 @@ class $ActivitiesTableManager
                 Value<String?> endDate = const Value.absent(),
                 Value<String?> startTime = const Value.absent(),
                 Value<String?> endTime = const Value.absent(),
-                Value<int> completed = const Value.absent(),
                 required int chunkId,
               }) => ActivitiesCompanion.insert(
                 id: id,
@@ -2293,7 +2691,6 @@ class $ActivitiesTableManager
                 endDate: endDate,
                 startTime: startTime,
                 endTime: endTime,
-                completed: completed,
                 chunkId: chunkId,
               ),
           withReferenceMapper: (p0) => p0
@@ -2302,10 +2699,10 @@ class $ActivitiesTableManager
                     (e.readTable(table), $ActivitiesReferences(db, table, e)),
               )
               .toList(),
-          prefetchHooksCallback: ({chunkId = false}) {
+          prefetchHooksCallback: ({chunkId = false, completionsRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [],
+              explicitlyWatchedTables: [if (completionsRefs) db.completions],
               addJoins:
                   <
                     T extends TableManagerState<
@@ -2339,7 +2736,19 @@ class $ActivitiesTableManager
                     return state;
                   },
               getPrefetchedDataCallback: (items) async {
-                return [];
+                return [
+                  if (completionsRefs)
+                    await $_getPrefetchedData<Activity, Activities, Completion>(
+                      currentTable: table,
+                      referencedTable: $ActivitiesReferences
+                          ._completionsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $ActivitiesReferences(db, table, p0).completionsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.activityId == item.id),
+                      typedResults: items,
+                    ),
+                ];
               },
             );
           },
@@ -2359,7 +2768,318 @@ typedef $ActivitiesProcessedTableManager =
       $ActivitiesUpdateCompanionBuilder,
       (Activity, $ActivitiesReferences),
       Activity,
-      PrefetchHooks Function({bool chunkId})
+      PrefetchHooks Function({bool chunkId, bool completionsRefs})
+    >;
+typedef $CompletionsCreateCompanionBuilder =
+    CompletionsCompanion Function({
+      Value<int> id,
+      required int activityId,
+      Value<String> completedDate,
+      Value<String?> completedAt,
+      Value<String?> note,
+    });
+typedef $CompletionsUpdateCompanionBuilder =
+    CompletionsCompanion Function({
+      Value<int> id,
+      Value<int> activityId,
+      Value<String> completedDate,
+      Value<String?> completedAt,
+      Value<String?> note,
+    });
+
+final class $CompletionsReferences
+    extends BaseReferences<_$AppDb, Completions, Completion> {
+  $CompletionsReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static Activities _activityIdTable(_$AppDb db) => db.activities.createAlias(
+    $_aliasNameGenerator(db.completions.activityId, db.activities.id),
+  );
+
+  $ActivitiesProcessedTableManager get activityId {
+    final $_column = $_itemColumn<int>('activityId')!;
+
+    final manager = $ActivitiesTableManager(
+      $_db,
+      $_db.activities,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_activityIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $CompletionsFilterComposer extends Composer<_$AppDb, Completions> {
+  $CompletionsFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get completedDate => $composableBuilder(
+    column: $table.completedDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $ActivitiesFilterComposer get activityId {
+    final $ActivitiesFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityId,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ActivitiesFilterComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $CompletionsOrderingComposer extends Composer<_$AppDb, Completions> {
+  $CompletionsOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get completedDate => $composableBuilder(
+    column: $table.completedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $ActivitiesOrderingComposer get activityId {
+    final $ActivitiesOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityId,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ActivitiesOrderingComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $CompletionsAnnotationComposer extends Composer<_$AppDb, Completions> {
+  $CompletionsAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get completedDate => $composableBuilder(
+    column: $table.completedDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  $ActivitiesAnnotationComposer get activityId {
+    final $ActivitiesAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.activityId,
+      referencedTable: $db.activities,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ActivitiesAnnotationComposer(
+            $db: $db,
+            $table: $db.activities,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $CompletionsTableManager
+    extends
+        RootTableManager<
+          _$AppDb,
+          Completions,
+          Completion,
+          $CompletionsFilterComposer,
+          $CompletionsOrderingComposer,
+          $CompletionsAnnotationComposer,
+          $CompletionsCreateCompanionBuilder,
+          $CompletionsUpdateCompanionBuilder,
+          (Completion, $CompletionsReferences),
+          Completion,
+          PrefetchHooks Function({bool activityId})
+        > {
+  $CompletionsTableManager(_$AppDb db, Completions table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $CompletionsFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $CompletionsOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $CompletionsAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int> activityId = const Value.absent(),
+                Value<String> completedDate = const Value.absent(),
+                Value<String?> completedAt = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+              }) => CompletionsCompanion(
+                id: id,
+                activityId: activityId,
+                completedDate: completedDate,
+                completedAt: completedAt,
+                note: note,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required int activityId,
+                Value<String> completedDate = const Value.absent(),
+                Value<String?> completedAt = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+              }) => CompletionsCompanion.insert(
+                id: id,
+                activityId: activityId,
+                completedDate: completedDate,
+                completedAt: completedAt,
+                note: note,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) =>
+                    (e.readTable(table), $CompletionsReferences(db, table, e)),
+              )
+              .toList(),
+          prefetchHooksCallback: ({activityId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (activityId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.activityId,
+                                referencedTable: $CompletionsReferences
+                                    ._activityIdTable(db),
+                                referencedColumn: $CompletionsReferences
+                                    ._activityIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $CompletionsProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDb,
+      Completions,
+      Completion,
+      $CompletionsFilterComposer,
+      $CompletionsOrderingComposer,
+      $CompletionsAnnotationComposer,
+      $CompletionsCreateCompanionBuilder,
+      $CompletionsUpdateCompanionBuilder,
+      (Completion, $CompletionsReferences),
+      Completion,
+      PrefetchHooks Function({bool activityId})
     >;
 
 class $AppDbManager {
@@ -2368,4 +3088,6 @@ class $AppDbManager {
   $ChunksTableManager get chunks => $ChunksTableManager(_db, _db.chunks);
   $ActivitiesTableManager get activities =>
       $ActivitiesTableManager(_db, _db.activities);
+  $CompletionsTableManager get completions =>
+      $CompletionsTableManager(_db, _db.completions);
 }

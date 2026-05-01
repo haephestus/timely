@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' as drift;
+import 'package:timely/utils/database/services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timely/models/chunk_activity.dart';
@@ -33,7 +33,15 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
   bool _isOpen = false;
   static const double _maxDrag = 90;
   static const double _threshold = 70;
+  late ChunkActivityService _service;
 
+  @override
+  void initState() {
+    super.initState();
+    _service = ChunkActivityService(widget.db);
+  }
+
+  bool _completed = false;
   ({Color bg, Color accent, String label, IconData icon}) get _scheme {
     return switch (widget.activity!) {
       OnceOffActivity() => (
@@ -89,16 +97,6 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
     }
   }
 
-  Future<void> _bulkDeleteActivity() async {
-    await (widget.db.delete(widget.db.activities)..where(
-          (a) =>
-              a.description.equals(widget.activity!.description) &
-              a.chunkId.equals(widget.chunk.chunkId!),
-        ))
-        .go();
-    widget.onDeleted?.call();
-  }
-
   Future<void> _showDeleteOptions() async {
     await showDialog(
       context: context,
@@ -131,12 +129,14 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
     );
   }
 
-  Future<void> _toggleCompletion(value) async {
-    final newValue = value ? 0 : 1;
-    await (widget.db.update(widget.db.activities)
-          ..where((a) => a.id.equals(widget.activity!.id!)))
-        .write(ActivitiesCompanion(completed: drift.Value(newValue)));
+  Future<void> _toggleCompletion(int activityId, bool completed) async {
+    if (completed) {
+      await _service.setActivityCompleted(activityId);
+    } else {
+      await _service.setActivityIncomplete(activityId);
+    }
     if (!mounted) return;
+    setState(() => _completed = completed);
     widget.onActivityChanged?.call();
   }
 
@@ -214,7 +214,8 @@ class _VerticalActivityCardState extends State<VerticalActivityCard> {
               });
             }
           },
-          onLongPress: () => _toggleCompletion(widget.activity!.completed),
+          onLongPress: () =>
+              _toggleCompletion(widget.activity!.id!, _completed),
           child: Transform.translate(
             offset: Offset(-_dragOffset, 0),
             child: Container(

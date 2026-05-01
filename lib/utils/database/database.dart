@@ -14,7 +14,7 @@ class AppDb extends _$AppDb {
   factory AppDb() => _instance;
 
   @override
-  int get schemaVersion => 2; // bump from 1 to 2
+  int get schemaVersion => 3; // bump from 1 to 2
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -24,8 +24,8 @@ class AppDb extends _$AppDb {
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         // Add the two new nullable columns to existing installs
-        await m.addColumn(activities, activities.startTime);
-        await m.addColumn(activities, activities.endTime);
+        await m.dropColumn(activities, 'completed');
+        await m.createTable(completions);
       }
     },
   );

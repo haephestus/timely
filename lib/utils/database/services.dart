@@ -121,7 +121,6 @@ class ChunkActivityService {
           return DailyActivity(
             id: a.id,
             description: a.description,
-            completed: a.completed == 1,
             date: a.date != null ? DateTime.parse(a.date!) : null,
             startTime: a.startTime,
             endTime: a.endTime,
@@ -130,7 +129,6 @@ class ChunkActivityService {
           return DailyActivity(
             id: a.id,
             description: a.description,
-            completed: a.completed == 1,
             date: a.date != null ? DateTime.parse(a.date!) : null,
             startTime: a.startTime,
             endTime: a.endTime,
@@ -139,7 +137,6 @@ class ChunkActivityService {
           return WeeklyActivity(
             id: a.id,
             description: a.description,
-            completed: a.completed == 1,
             weekday: a.selectedDays?.split(',') ?? [],
             startTime: a.startTime,
             endTime: a.endTime,
@@ -148,7 +145,6 @@ class ChunkActivityService {
           return SeasonalActivity(
             id: a.id,
             description: a.description,
-            completed: a.completed == 1,
             startDate: DateTime.parse(a.startDate!),
             endDate: DateTime.parse(a.endDate!),
             startTime: a.startTime,
@@ -185,7 +181,6 @@ class ChunkActivityService {
           startDate: const Value.absent(),
           date: const Value.absent(),
           endDate: const Value.absent(),
-          completed: const Value(0),
         ),
       );
     });
@@ -249,7 +244,6 @@ class ChunkActivityService {
           startDate: const Value.absent(),
           date: Value(date),
           endDate: const Value.absent(),
-          completed: const Value(0),
         ),
       );
     });
@@ -315,7 +309,6 @@ class ChunkActivityService {
             endTime: Value(endTime),
             startDate: const Value.absent(),
             endDate: const Value.absent(),
-            completed: const Value(0),
           ),
         );
   }
@@ -366,7 +359,6 @@ class ChunkActivityService {
             chunkId: Value(chunkId),
             startTime: Value(startTime),
             endTime: Value(endTime),
-            completed: const Value(0),
           ),
         );
   }
@@ -398,10 +390,30 @@ class ChunkActivityService {
     );
   }
 
-  Future<void> setActivityCompleted(int activityId, bool completed) {
-    return (database.update(database.activities)
-          ..where((a) => a.id.equals(activityId)))
-        .write(db.ActivitiesCompanion(completed: Value(completed ? 1 : 0)));
+  /* =========================
+   *  COMPLETIONS
+   * =========================
+  */
+  Future<void> setActivityCompleted(int activityId) {
+    return database
+        .into(database.completions)
+        .insertOnConflictUpdate(
+          db.CompletionsCompanion(
+            activityId: Value(activityId),
+            completedDate: Value(
+              DateTime.now().toIso8601String().split('T')[0],
+            ),
+          ),
+        );
+  }
+
+  Future<void> setActivityIncomplete(int activityId) {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    return (database.delete(database.completions)..where(
+          (c) =>
+              c.activityId.equals(activityId) & c.completedDate.equals(today),
+        ))
+        .go();
   }
 
   /* =========================

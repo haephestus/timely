@@ -10,13 +10,15 @@ import 'package:timely/widgets/navbar.dart';
 import 'package:provider/provider.dart';
 import 'package:alarm/utils/alarm_set.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // NOTE: line 19 prevents landscape
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final settings = SettingsProvider();
   await settings.load();
-
   await Alarm.init();
   _listenForAlarms();
 

@@ -32,6 +32,7 @@ class ActivityWidget extends StatelessWidget {
   @override
   // Hide completed activity
   Widget build(BuildContext context) {
+    // TODO: add a way to show incomplete activities
     SettingsProvider settings = context.watch<SettingsProvider>();
     String _fmt12(String? timeStr) {
       if (timeStr == null) return '--:--';
@@ -51,43 +52,151 @@ class ActivityWidget extends StatelessWidget {
 
     if (chunk == null) {
       return Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
-          ),
-        ),
+        decoration: const BoxDecoration(color: Colors.white),
         child: const Center(child: Text('No chunk selected.')),
       );
     }
 
     final s = chunkScheme(chunk!);
 
-    return Stack(
+    return Column(
       children: [
-        // bleeds s.bg into the rounded corner gaps of the white card
-        Positioned.fill(
-          child: Container(
-            decoration: BoxDecoration(
-              color: s.accent.withAlpha(80),
-              borderRadius: BorderRadiusGeometry.circular(28),
-            ),
+        // front layer — chunk header
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(color: Colors.transparent),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  //Chunk icon
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadiusGeometry.circular(12),
+                      color: s.accent.withValues(alpha: 0.25),
+                    ),
+                    child: Icon(s.icon, color: s.bg, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  //Chunk name
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          chunk!.name,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: s.bg,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        Text(
+                          s.label,
+                          style: TextStyle(fontSize: 12, color: s.accent),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      //Chunk frequency
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadiusGeometry.circular(8),
+                          color: s.accent.withValues(alpha: 0.2),
+                        ),
+                        child: Text(
+                          chunk!.frequency.name,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: s.bg,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        settings.is24HourFormat
+                            ? '${chunk!.startTimeStr} – ${chunk!.endTimeStr}'
+                            : '${_fmt12(chunk!.startTimeStr)} – ${_fmt12(chunk!.endTimeStr)}',
+                        style: TextStyle(fontSize: 12, color: s.accent),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Divider(color: s.accent.withValues(alpha: 0.2), height: 1),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  // Activities label
+                  GestureDetector(
+                    onTap: () async {
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ActivityManager(chunk: chunk!, isEdit: false),
+                        ),
+                      );
+                      if (result == true) onActivityChanged?.call();
+                    },
+                    child: Row(
+                      children: [
+                        Text(
+                          activities.length == 1
+                              ? '${activities.length} activity'
+                              : '${activities.length} activities',
+                          style: TextStyle(fontSize: 12, color: s.accent),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // Activity status
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: chunk!.isActive
+                          ? s.accent
+                          : s.accent.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    chunk!.isActive ? 'Active' : 'Inactive',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: chunk!.isActive
+                          ? s.accent
+                          : s.accent.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-
         // back layer — white activities card with rounded top corners
         Positioned.fill(
           top: 110,
           child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(28),
-                topRight: Radius.circular(28),
-              ),
-            ),
-            padding: const EdgeInsets.only(top: 12),
+            decoration: const BoxDecoration(color: Colors.transparent),
+            padding: const EdgeInsets.only(top: 72),
             child: activities.isEmpty
                 ? Center(
                     child: Column(
@@ -117,138 +226,6 @@ class ActivityWidget extends StatelessWidget {
                       onActivityChanged: () => onActivityChanged?.call(),
                     ),
                   ),
-          ),
-        ),
-
-        // front layer — chunk header
-        Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadiusGeometry.circular(24),
-            color: Colors.transparent,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  //Chunk icon
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: s.accent.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(s.icon, color: s.bg, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  //Chunk name
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          chunk!.name,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: s.bg,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        Text(
-                          s.label,
-                          style: TextStyle(fontSize: 12, color: s.accent),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: s.accent.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          chunk!.frequency.name,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: s.bg,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      // TODO : chunk times formatting
-                      Text(
-                        settings.is24HourFormat
-                            ? '${chunk!.startTimeStr} – ${chunk!.endTimeStr}'
-                            : '${_fmt12(chunk!.startTimeStr)} – ${_fmt12(chunk!.endTimeStr)}',
-                        style: TextStyle(fontSize: 12, color: s.accent),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Divider(color: s.accent.withValues(alpha: 0.2), height: 1),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      final result = await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              ActivityManager(chunk: chunk!, isEdit: false),
-                        ),
-                      );
-                      if (result == true) onActivityChanged?.call();
-                    },
-                    child: Row(
-                      children: [
-                        Text(
-                          activities.length == 1
-                              ? '${activities.length} activity'
-                              : '${activities.length} activities',
-                          style: TextStyle(fontSize: 12, color: s.accent),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: chunk!.isActive
-                          ? s.accent
-                          : s.accent.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    chunk!.isActive ? 'Active' : 'Inactive',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: chunk!.isActive
-                          ? s.accent
-                          : s.accent.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
         ),
       ],

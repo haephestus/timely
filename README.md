@@ -79,7 +79,7 @@ Flutter was chosen specifically for cross-platform reach. The goal is for Timely
 
 ```bash
 git clone https://github.com/haephestus/timely.git
-cd timely/timely_app
+cd timely/timely
 flutter pub get
 flutter run
 ```

@@ -100,3 +100,22 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+  #
+  
+flutter_launcher_icons:
+  android: "launcher_icon"        # name of the generated icon file
+  ios: true
+  image_path: "assets/icon/icon.png"
+  
+  # Android adaptive icon (Android 8.0+)
+  adaptive_icon_background: "#FFFFFF"   # or use an image path
+  
+  # Optional: round icon for Android
+  image_path_android: "assets/icon/icon.png"
+  image_path_ios: "assets/icon/icon.png"
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/icon/icon.png"
+  android: true
+  ios: true

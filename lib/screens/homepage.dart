@@ -72,7 +72,6 @@ class HomePageState extends State<HomePage> {
     final alarms = await Alarm.getAlarms();
     final now = DateTime.now();
 
-    // just filter for future alarms, no day restriction
     final upcomingAlarms = alarms.where((a) => a.dateTime.isAfter(now)).toList()
       ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
 
@@ -102,7 +101,6 @@ class HomePageState extends State<HomePage> {
                             minute: alarm.dateTime.minute,
                           ).format(context);
 
-                    // show date if it's not today
                     final isToday =
                         alarm.dateTime.day == now.day &&
                         alarm.dateTime.month == now.month &&
@@ -138,9 +136,32 @@ class HomePageState extends State<HomePage> {
     );
   }
 
+  bool _chunkIsToday(model.Chunk chunk, DateTime today) {
+    return switch (chunk) {
+      model.ScheduledChunk c => c.selectedDays.contains(
+        ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'][today.weekday - 1],
+      ),
+      model.SeasonalChunk c => () {
+        if (c.startDate.isEmpty || c.endDate.isEmpty) return false;
+        final start = DateTime.parse(c.startDate);
+        final end = DateTime.parse(c.endDate);
+        return !today.isBefore(start) && !today.isAfter(end);
+      }(),
+      model.OnceChunk c => c.date == today.toIso8601String().split('T').first,
+      model.DailyChunk _ => true,
+      _ => false,
+    };
+  }
+
   Future<void> loadChunks({bool tomorrow = false}) async {
     final dateStr = _selectedDay.toIso8601String().split('T').first;
     final dbChunks = await _service.getTodaysChunks(dateStr);
+
+    final today = DateTime.now();
+    final isViewingToday =
+        _selectedDay.year == today.year &&
+        _selectedDay.month == today.month &&
+        _selectedDay.day == today.day;
 
     if (!mounted) return;
 
@@ -212,10 +233,11 @@ class HomePageState extends State<HomePage> {
       _selectedChunk = null;
     });
 
-    notify.scheduledToday(_chunks);
-    widget.onChunkSelected?.call(null);
-    if (_selectedChunk != null) {
-      await loadChunkActivities(_selectedChunk!.chunkId!);
+    if (isViewingToday) {
+      final todaysChunks = mappedChunks
+          .where((chunk) => _chunkIsToday(chunk, today))
+          .toList();
+      await notify.scheduledToday(todaysChunks);
     }
   }
 
@@ -257,168 +279,175 @@ class HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     settings = context.watch<SettingsProvider>();
     return Scaffold(
-      backgroundColor: Colors.grey.shade300,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(color: Colors.grey.shade300),
+      backgroundColor: Colors.white,
+      body: Column(
+        // ← bounded by Scaffold
+        children: [
+          // ── Red header (status bar bleed + calendar + timeline) ──
+          Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: const BorderRadius.only(
+                // ← only bottom corners
+                bottomLeft: Radius.circular(18),
+                bottomRight: Radius.circular(18),
+              ),
+            ),
+            child: SafeArea(
+              bottom: false, // ← top inset only
               child: Column(
+                mainAxisSize:
+                    MainAxisSize.min, // ← shrink-wrap; no Expanded here
                 children: [
-                  SizedBox(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        /// Top header
-                        DateHeader(
-                          is24HourFormat: settings.is24HourFormat,
-                          selectedDay: _selectedDay,
-                          onNowPressed: _goToNow,
-                        ),
+                  /// Top header
+                  DateHeader(
+                    is24HourFormat: settings.is24HourFormat,
+                    selectedDay: _selectedDay,
+                    onNowPressed: _goToNow,
+                  ),
 
-                        /// WEEK CALENDAR
-                        Listener(
-                          onPointerSignal: (pointerSignal) {
-                            setState(() {
-                              if (pointerSignal is PointerScrollEvent) {
-                                if (pointerSignal.scrollDelta.dy > 0) {
-                                  final next = _focusedDay.add(
-                                    const Duration(days: 7),
-                                  );
-                                  _focusedDay = next.isAfter(kLastDay)
-                                      ? kLastDay
-                                      : next;
-                                } else {
-                                  final previous = _focusedDay.subtract(
-                                    const Duration(days: 7),
-                                  );
-                                  _focusedDay = previous.isBefore(kFirstDay)
-                                      ? kFirstDay
-                                      : previous;
-                                }
-                              }
-                            });
-                          },
-                          child: TableCalendar(
-                            //replace this with a setting
-                            startingDayOfWeek: settings.weekStart,
-                            headerVisible: false,
-                            daysOfWeekVisible: false,
-                            weekNumbersVisible: true,
-                            calendarStyle: CalendarStyle(
-                              weekendTextStyle: TextStyle(
-                                color: Colors.red.withAlpha(200),
-                              ),
-                              selectedTextStyle: TextStyle(color: Colors.white),
-                              selectedDecoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              todayTextStyle: TextStyle(color: Colors.white),
-                              todayDecoration: BoxDecoration(
-                                color: Colors.black.withAlpha(70),
-                                shape: BoxShape.circle,
-                              ),
-                              weekNumberTextStyle: TextStyle(
-                                color: Colors.red,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                              ),
-                              markerDecoration: BoxDecoration(
-                                color: Colors.red,
-                              ),
-                            ),
-                            rowHeight: 48,
-                            availableCalendarFormats: const {
-                              CalendarFormat.week: 'Week',
+                  /// Week calendar
+                  Listener(
+                    onPointerSignal: (pointerSignal) {
+                      setState(() {
+                        if (pointerSignal is PointerScrollEvent) {
+                          if (pointerSignal.scrollDelta.dy > 0) {
+                            final next = _focusedDay.add(
+                              const Duration(days: 7),
+                            );
+                            _focusedDay = next.isAfter(kLastDay)
+                                ? kLastDay
+                                : next;
+                          } else {
+                            final previous = _focusedDay.subtract(
+                              const Duration(days: 7),
+                            );
+                            _focusedDay = previous.isBefore(kFirstDay)
+                                ? kFirstDay
+                                : previous;
+                          }
+                        }
+                      });
+                    },
+                    child: TableCalendar(
+                      startingDayOfWeek: settings.weekStart,
+                      headerVisible: false,
+                      daysOfWeekVisible: false,
+                      weekNumbersVisible: true,
+                      calendarStyle: CalendarStyle(
+                        weekendTextStyle: TextStyle(
+                          color: Colors.red.withAlpha(200),
+                        ),
+                        selectedTextStyle: const TextStyle(color: Colors.white),
+                        selectedDecoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        todayTextStyle: const TextStyle(color: Colors.white),
+                        todayDecoration: BoxDecoration(
+                          color: Colors.black.withAlpha(70),
+                          shape: BoxShape.circle,
+                        ),
+                        weekNumberTextStyle: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        markerDecoration: const BoxDecoration(
+                          color: Colors.red,
+                        ),
+                      ),
+                      rowHeight: 48,
+                      availableCalendarFormats: const {
+                        CalendarFormat.week: 'Week',
+                      },
+                      availableGestures: AvailableGestures.all,
+                      calendarFormat: _calendarFormat,
+                      daysOfWeekHeight: 28,
+                      focusedDay: _focusedDay,
+                      firstDay: kFirstDay,
+                      lastDay: kLastDay,
+                      selectedDayPredicate: (day) =>
+                          isSameDay(_selectedDay, day),
+                      onDaySelected: (selectedDay, focusedDay) {
+                        setState(() {
+                          _selectedDay = selectedDay;
+                          _focusedDay = focusedDay;
+                          _selectedChunk = _chunks.isNotEmpty
+                              ? _getChunkForNow()
+                              : null;
+                        });
+                        loadChunks();
+                        widget.onChunkSelected?.call(_selectedChunk);
+                        if (_selectedChunk != null) {
+                          loadChunkActivities(_selectedChunk!.chunkId!);
+                        }
+                      },
+                      onPageChanged: (focusedDay) {
+                        _focusedDay = focusedDay;
+                      },
+                    ),
+                  ),
+
+                  /// Horizontal day timeline
+                  _chunks.isEmpty
+                      ? Center(
+                          child: TextButton.icon(
+                            label: const Text("Create your first chunk"),
+                            onPressed: _openChunkManager,
+                            icon: const Icon(Icons.add),
+                          ),
+                        )
+                      : Padding(
+                          padding: EdgeInsetsGeometry.only(
+                            left: 6,
+                            right: 6,
+                            bottom: 12,
+                          ),
+                          child: HorizontalTimeline(
+                            key: _timelineKey,
+                            chunks: _chunks,
+                            selectedChunk: _selectedChunk,
+                            onChunkSelected: (chunk) async {
+                              setState(() => _selectedChunk = chunk);
+                              widget.onChunkSelected?.call(chunk);
+                              await loadChunkActivities(chunk.chunkId!);
                             },
-                            // eventLoader: (chunks) { return _getChunkForNow();},
-                            availableGestures: AvailableGestures.all,
-                            calendarFormat: _calendarFormat,
-                            daysOfWeekHeight: 28,
-                            focusedDay: _focusedDay,
-                            firstDay: kFirstDay,
-                            lastDay: kLastDay,
-                            selectedDayPredicate: (day) =>
-                                isSameDay(_selectedDay, day),
-                            onDaySelected: (selectedDay, focusedDay) {
-                              setState(() {
-                                _selectedDay = selectedDay;
-                                _focusedDay = focusedDay;
-                                _selectedChunk = _chunks.isNotEmpty
-                                    ? _getChunkForNow()
-                                    : null;
-                              });
-                              loadChunks();
-                              widget.onChunkSelected?.call(_selectedChunk);
-                              if (_selectedChunk != null) {
-                                loadChunkActivities(_selectedChunk!.chunkId!);
-                              }
-                            },
-                            onPageChanged: (focusedDay) {
-                              _focusedDay = focusedDay;
+                            onLongPress: _showUpcomingAlarms,
+                            onChunkLongPress: (chunk) async {
+                              final result = await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ChunkManager(isEdit: true, chunk: chunk),
+                                ),
+                              );
+                              if (result == true && mounted) await loadChunks();
                             },
                           ),
                         ),
-
-                        /// HORIZONTAL DAY TIMELINE
-                        _chunks.isEmpty
-                            ? Center(
-                                child: TextButton.icon(
-                                  label: const Text("Create your first chunk"),
-                                  onPressed: _openChunkManager,
-                                  icon: const Icon(Icons.add),
-                                ),
-                              )
-                            : HorizontalTimeline(
-                                key: _timelineKey,
-                                chunks: _chunks,
-                                selectedChunk: _selectedChunk,
-                                onChunkSelected: (chunk) async {
-                                  setState(() {
-                                    _selectedChunk = chunk;
-                                  });
-                                  widget.onChunkSelected?.call(chunk);
-                                  await loadChunkActivities(chunk.chunkId!);
-                                },
-                                onLongPress: _showUpcomingAlarms,
-                                onChunkLongPress: (chunk) async {
-                                  final result = await Navigator.of(context)
-                                      .push(
-                                        MaterialPageRoute(
-                                          builder: (_) => ChunkManager(
-                                            isEdit: true,
-                                            chunk: chunk,
-                                          ),
-                                        ),
-                                      );
-                                  if (result == true && mounted) {
-                                    await loadChunks();
-                                  }
-                                },
-                              ),
-                      ],
-                    ),
-                  ),
-
-                  /// ACTIVITIES FOR CHUNK
-                  Expanded(
-                    child: ActivityWidget(
-                      scrollController: widget.scrollController,
-                      db: _database,
-                      chunk: _selectedChunk,
-                      activities: _activities,
-                      onActivityChanged: _selectedChunk != null
-                          ? () => loadChunkActivities(_selectedChunk!.chunkId!)
-                          : null,
-                    ),
-                  ),
                 ],
               ),
             ),
-            // Custom Nav bar
-          ],
-        ),
+          ),
+
+          // ── Activities (takes all remaining space) ──
+          Expanded(
+            // ← valid: parent Column is bounded
+            child: ActivityWidget(
+              scrollController: widget.scrollController,
+              db: _database,
+              chunk: _selectedChunk,
+              activities: _activities,
+              onActivityChanged: _selectedChunk != null
+                  ? () => loadChunkActivities(_selectedChunk!.chunkId!)
+                  : null,
+            ),
+          ),
+
+          // Bottom safe area (home indicator / gesture bar)
+          SizedBox(height: MediaQuery.of(context).padding.bottom),
+        ],
       ),
     );
   }
