@@ -5,7 +5,7 @@ import 'package:timely/models/chunk.dart';
 import 'package:timely/screens/activity_manager.dart';
 import 'package:timely/utils/database/database.dart' as database;
 import 'package:timely/utils/settings_provider.dart';
-import 'package:timely/widgets/activity/horizontal_activity_cart.dart';
+import 'package:timely/widgets/activity/horizontal_activity_card.dart';
 
 // TODO: check for incomplete activities, carry them over to next day
 // OR show incomplete activity counter
@@ -222,6 +222,7 @@ class ActivityWidget extends StatelessWidget {
                       chunk: chunk!,
                       activity: activities[index],
                       onCompleted: () => onCompleted?.call(),
+                      onChanged: () => onActivityChanged?.call(),
                     ),
                   ),
           ),

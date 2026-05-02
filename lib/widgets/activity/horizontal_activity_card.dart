@@ -115,10 +115,17 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
     final s = _scheme;
 
     final start = _toMinutes(widget.activity.startTime);
-    final end = _toMinutes(widget.activity.endTime);
+    var end = _toMinutes(widget.activity.endTime);
 
     final now = TimeOfDay.now();
-    final nowMinutes = now.hour * 60 + now.minute;
+    var nowMinutes = now.hour * 60 + now.minute;
+
+    // ── Overnight normalization ──
+    final isOvernight = end <= start;
+    if (isOvernight) {
+      end += 1440;
+      if (nowMinutes < start) nowMinutes += 1440;
+    }
 
     double progress = 0;
     if (end > start) {
@@ -129,7 +136,6 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
       }
     }
     progress = progress.clamp(0.0, 1.0);
-
     final double actionOpacity = (_dragOffset.abs() / _maxDrag).clamp(0.0, 1.0);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),

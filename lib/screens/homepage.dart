@@ -22,6 +22,7 @@ class HomePage extends StatefulWidget {
   final ScrollController? scrollController;
   final ValueChanged<model.Chunk?>? onChunkSelected;
   final ValueChanged<model.Chunk?>? onChunkAdded;
+
   const HomePage({
     this.onChunkSelected,
     this.onChunkAdded,
@@ -58,11 +59,19 @@ class HomePageState extends State<HomePage> {
   }
 
   model.Chunk? _getChunkForNow() {
-    final currentHour = DateTime.now().hour;
+    final now = DateTime.now();
+    final nowMinutes = now.hour * 60 + now.minute;
     try {
-      return _chunks.firstWhere(
-        (c) => currentHour >= c.startHour && currentHour < c.endHour,
-      );
+      return _chunks.firstWhere((c) {
+        final start = c.startTotalMinutes;
+        var end = c.endTotalMinutes;
+        final isOvernight = end <= start;
+        if (isOvernight) end += 1440;
+        final nowNorm = (isOvernight && nowMinutes < start)
+            ? nowMinutes + 1440
+            : nowMinutes;
+        return nowNorm >= start && nowNorm < end;
+      });
     } catch (_) {
       return null;
     }
@@ -84,7 +93,7 @@ class HomePageState extends State<HomePage> {
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
-          "Upcoming Alarms",
+          'Upcoming Alarms',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
         content: upcomingAlarms.isEmpty
@@ -153,6 +162,70 @@ class HomePageState extends State<HomePage> {
     };
   }
 
+  /// Maps a raw DB chunk row to a model.Chunk.
+  model.Chunk _mapChunk(db.Chunk c) {
+    final base = (
+      chunkId: c.id,
+      name: c.name,
+      isActive: c.isActive == 1,
+      startHour: c.startHour ?? 0,
+      startMinute: c.startMinute ?? 0,
+      endHour: c.endHour ?? 0,
+      endMinute: c.endMinute ?? 0,
+      category: model.mapCategory(c.category),
+    );
+
+    return switch (c.frequency) {
+      'weekly' => model.ScheduledChunk(
+        name: base.name,
+        chunkId: base.chunkId,
+        isActive: base.isActive,
+        startHour: base.startHour,
+        startMinute: base.startMinute,
+        endHour: base.endHour,
+        endMinute: base.endMinute,
+        category: base.category,
+        selectedDays: c.selectedDays?.split(',') ?? [],
+      ),
+      'seasonal' => () {
+        final parts = (c.date ?? '|').split('|');
+        return model.SeasonalChunk(
+          name: base.name,
+          chunkId: base.chunkId,
+          isActive: base.isActive,
+          startHour: base.startHour,
+          startMinute: base.startMinute,
+          endHour: base.endHour,
+          endMinute: base.endMinute,
+          category: base.category,
+          startDate: parts.elementAtOrNull(0) ?? '',
+          endDate: parts.elementAtOrNull(1) ?? '',
+        );
+      }(),
+      'onceoff' => model.OnceChunk(
+        name: base.name,
+        chunkId: base.chunkId,
+        isActive: base.isActive,
+        startHour: base.startHour,
+        startMinute: base.startMinute,
+        endHour: base.endHour,
+        endMinute: base.endMinute,
+        category: base.category,
+        date: c.date,
+      ),
+      _ => model.DailyChunk(
+        name: base.name,
+        chunkId: base.chunkId,
+        isActive: base.isActive,
+        startHour: base.startHour,
+        startMinute: base.startMinute,
+        endHour: base.endHour,
+        endMinute: base.endMinute,
+        category: base.category,
+      ),
+    };
+  }
+
   Future<void> loadChunks({bool tomorrow = false}) async {
     final dateStr = _selectedDay.toIso8601String().split('T').first;
     final dbChunks = await _service.getTodaysChunks(dateStr);
@@ -165,76 +238,36 @@ class HomePageState extends State<HomePage> {
 
     if (!mounted) return;
 
-    final mappedChunks = dbChunks.map<model.Chunk>((c) {
-      final base = (
-        chunkId: c.id,
-        name: c.name,
-        isActive: c.isActive == 1,
-        startHour: c.startHour ?? 0,
-        startMinute: c.startMinute ?? 0,
-        endHour: c.endHour ?? 0,
-        endMinute: c.endMinute ?? 0,
-        category: model.mapCategory(c.category),
-      );
+    final mappedChunks = dbChunks.map<model.Chunk>(_mapChunk).toList();
 
-      return switch (c.frequency) {
-        'weekly' => model.ScheduledChunk(
-          name: base.name,
-          chunkId: base.chunkId,
-          isActive: base.isActive,
-          startHour: base.startHour,
-          startMinute: base.startMinute,
-          endHour: base.endHour,
-          endMinute: base.endMinute,
-          category: base.category,
-          selectedDays: c.selectedDays?.split(',') ?? [],
-        ),
-        'seasonal' => () {
-          final parts = (c.date ?? '|').split('|');
-          return model.SeasonalChunk(
-            name: base.name,
-            chunkId: base.chunkId,
-            isActive: base.isActive,
-            startHour: base.startHour,
-            startMinute: base.startMinute,
-            endHour: base.endHour,
-            endMinute: base.endMinute,
-            category: base.category,
-            startDate: parts.elementAtOrNull(0) ?? '',
-            endDate: parts.elementAtOrNull(1) ?? '',
-          );
-        }(),
-        'onceoff' => model.OnceChunk(
-          name: base.name,
-          chunkId: base.chunkId,
-          isActive: base.isActive,
-          startHour: base.startHour,
-          startMinute: base.startMinute,
-          endHour: base.endHour,
-          endMinute: base.endMinute,
-          category: base.category,
-          date: c.date,
-        ),
-        _ => model.DailyChunk(
-          name: base.name,
-          chunkId: base.chunkId,
-          isActive: base.isActive,
-          startHour: base.startHour,
-          startMinute: base.startMinute,
-          endHour: base.endHour,
-          endMinute: base.endMinute,
-          category: base.category,
-        ),
-      };
-    }).toList();
+    // ── Fetch overnight chunks that started yesterday and bleed into today ──
+    final yesterday = _selectedDay.subtract(const Duration(days: 1));
+    final yesterdayStr = yesterday.toIso8601String().split('T').first;
+    final yesterdayDbChunks = await _service.getTodaysChunks(yesterdayStr);
+
+    final overnightChunks = yesterdayDbChunks
+        .where((c) {
+          final startH = c.startHour ?? 0;
+          final endH = c.endHour ?? 0;
+          final startM = c.startMinute ?? 0;
+          final endM = c.endMinute ?? 0;
+          // Overnight = end time is before or equal to start time
+          return (endH * 60 + endM) <= (startH * 60 + startM);
+        })
+        .map<model.Chunk>(_mapChunk)
+        // Avoid duplicates in case the same chunk already appears today
+        .where((c) => !mappedChunks.any((m) => m.chunkId == c.chunkId))
+        .toList();
+
+    final allChunks = [...mappedChunks, ...overnightChunks];
 
     setState(() {
-      _chunks = mappedChunks;
+      _chunks = allChunks;
       _selectedChunk = null;
     });
 
     if (isViewingToday) {
-      final todaysChunks = mappedChunks
+      final todaysChunks = allChunks
           .where((chunk) => _chunkIsToday(chunk, today))
           .toList();
       await notify.scheduledToday(todaysChunks);
@@ -281,33 +314,26 @@ class HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
-        // ← bounded by Scaffold
         children: [
-          // ── Red header (status bar bleed + calendar + timeline) ──
           Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: Colors.grey.shade300,
               borderRadius: const BorderRadius.only(
-                // ← only bottom corners
                 bottomLeft: Radius.circular(18),
                 bottomRight: Radius.circular(18),
               ),
             ),
             child: SafeArea(
-              bottom: false, // ← top inset only
+              bottom: false,
               child: Column(
-                mainAxisSize:
-                    MainAxisSize.min, // ← shrink-wrap; no Expanded here
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  /// Top header
                   DateHeader(
                     is24HourFormat: settings.is24HourFormat,
                     selectedDay: _selectedDay,
                     onNowPressed: _goToNow,
                   ),
-
-                  /// Week calendar
                   Listener(
                     onPointerSignal: (pointerSignal) {
                       setState(() {
@@ -389,18 +415,16 @@ class HomePageState extends State<HomePage> {
                       },
                     ),
                   ),
-
-                  /// Horizontal day timeline
                   _chunks.isEmpty
                       ? Center(
                           child: TextButton.icon(
-                            label: const Text("Create your first chunk"),
+                            label: const Text('Create your first chunk'),
                             onPressed: _openChunkManager,
                             icon: const Icon(Icons.add),
                           ),
                         )
                       : Padding(
-                          padding: EdgeInsetsGeometry.only(
+                          padding: const EdgeInsets.only(
                             left: 6,
                             right: 6,
                             bottom: 12,
@@ -430,10 +454,7 @@ class HomePageState extends State<HomePage> {
               ),
             ),
           ),
-
-          // ── Activities (takes all remaining space) ──
           Expanded(
-            // ← valid: parent Column is bounded
             child: ActivityWidget(
               scrollController: widget.scrollController,
               db: _database,

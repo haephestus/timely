@@ -10,7 +10,6 @@ import 'package:timely/utils/settings_provider.dart';
 import 'package:timely/utils/calendar_utils.dart' as cal;
 import 'package:day_picker/day_picker.dart';
 
-// FIX: chunk of different categories and same times can overlap - prevent that
 class ChunkManager extends StatefulWidget {
   final bool isEdit;
   final model.Chunk? chunk;
@@ -38,6 +37,13 @@ class _ChunkManagerState extends State<ChunkManager> {
   DateTimeRange? _weeklyRange;
   List<String> _weekdays = [];
 
+  // ── Overnight detection ──────────────────────────────────────────────────────
+  bool get _isOvernight {
+    final s = startTime.hour * 60 + startTime.minute;
+    final e = endTime.hour * 60 + endTime.minute;
+    return e < s;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,25 +58,19 @@ class _ChunkManagerState extends State<ChunkManager> {
       _frequency = chunk.frequency;
       _category = chunk.category;
 
-      // Restore frequency-specific state by matching the concrete subtype
       switch (chunk) {
         case model.OnceChunk c:
           if (c.date != null) _onceoffDate = DateTime.tryParse(c.date!);
-
         case model.ScheduledChunk c:
-          if (c.selectedDays.isNotEmpty) {
-            _weekdays = c.selectedDays;
-          }
-
+          if (c.selectedDays.isNotEmpty) _weekdays = c.selectedDays;
         case model.SeasonalChunk c:
           final s = DateTime.tryParse(c.startDate);
           final e = DateTime.tryParse(c.endDate);
           if (s != null && e != null) {
             _weeklyRange = DateTimeRange(start: s, end: e);
           }
-
         default:
-          break; // DailyChunk — nothing extra to restore
+          break;
       }
     }
   }
@@ -81,7 +81,7 @@ class _ChunkManagerState extends State<ChunkManager> {
     super.dispose();
   }
 
-  // ── Date pickers ────────────────────────────────────────────────────────────
+  // ── Date pickers ─────────────────────────────────────────────────────────────
 
   Future<void> _pickOnceoffDate() async {
     final picked = await showDatePicker(
@@ -176,13 +176,12 @@ class _ChunkManagerState extends State<ChunkManager> {
     setState(() => _weekdays = selected);
   }
 
-  // ── Frequency detail summary widget ─────────────────────────────────────────
+  // ── Frequency detail ──────────────────────────────────────────────────────────
 
   Widget _frequencyDetail() {
     switch (_frequency) {
       case model.ChunkFrequency.daily:
         return const SizedBox.shrink();
-
       case model.ChunkFrequency.onceoff:
         return _DetailRow(
           icon: Icons.calendar_today,
@@ -192,7 +191,6 @@ class _ChunkManagerState extends State<ChunkManager> {
           onTap: _pickOnceoffDate,
           missing: _onceoffDate == null,
         );
-
       case model.ChunkFrequency.weekly:
         return _DetailRow(
           icon: Icons.repeat,
@@ -200,13 +198,12 @@ class _ChunkManagerState extends State<ChunkManager> {
           onTap: _pickWeekdays,
           missing: _weekdays.isEmpty,
         );
-
       case model.ChunkFrequency.seasonal:
         return _DetailRow(
           icon: Icons.date_range,
           text: _weeklyRange != null
               ? '${_fmt(_weeklyRange!.start)} → ${_fmt(_weeklyRange!.end)}'
-              : 'Tap to pick date seasonal',
+              : 'Tap to pick date range',
           onTap: _pickSeasonalRange,
           missing: _weeklyRange == null,
         );
@@ -215,12 +212,12 @@ class _ChunkManagerState extends State<ChunkManager> {
 
   String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
-  // ── Time ────────────────────────────────────────────────────────────────────
+  // ── Time ──────────────────────────────────────────────────────────────────────
 
   String _formatTime(TimeOfDay time) {
     final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');
-    return "$hour:$minute";
+    return '$hour:$minute';
   }
 
   Future<void> _pickTime({
@@ -250,7 +247,7 @@ class _ChunkManagerState extends State<ChunkManager> {
     );
   }
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
+  // ── Delete ────────────────────────────────────────────────────────────────────
 
   Future<void> _deleteChunk() async {
     if (widget.chunk?.chunkId == null) return;
@@ -263,54 +260,54 @@ class _ChunkManagerState extends State<ChunkManager> {
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error deleting: $e")));
+      ).showSnackBar(SnackBar(content: Text('Error deleting: $e')));
     }
     notify.stop(widget.chunk!.chunkId);
   }
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────────
 
   Future<void> _submitChunk() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Name is required")));
+      ).showSnackBar(const SnackBar(content: Text('Name is required')));
       return;
     }
 
     final startMinutes = startTime.hour * 60 + startTime.minute;
     final endMinutes = endTime.hour * 60 + endTime.minute;
-    if (startMinutes >= endMinutes) {
+
+    // Allow overnight (end < start) — only reject equal times
+    if (startMinutes == endMinutes) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Start time must be before end time")),
+        const SnackBar(content: Text('Start and end time cannot be the same')),
       );
       return;
     }
 
-    // Guard frequency-specific required fields
     if (_frequency == model.ChunkFrequency.onceoff && _onceoffDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Please pick a date for this one-off chunk"),
+          content: Text('Please pick a date for this one-off chunk'),
         ),
       );
       return;
     }
     if (_frequency == model.ChunkFrequency.weekly && _weekdays.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please pick at least one day")),
+        const SnackBar(content: Text('Please pick at least one day')),
       );
       return;
     }
     if (_frequency == model.ChunkFrequency.seasonal && _weeklyRange == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please pick a date seasonal")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please pick a date range')));
       return;
     }
 
-    // Encode frequency data for DB columns
     final String? dateValue = switch (_frequency) {
       model.ChunkFrequency.onceoff =>
         _onceoffDate!.toIso8601String().split('T').first,
@@ -357,10 +354,10 @@ class _ChunkManagerState extends State<ChunkManager> {
             startHour: drift.Value(startTime.hour),
             startMinute: drift.Value(startTime.minute),
             startDate: drift.Value(
-              _weeklyRange?.start.toIso8601String().split("T").first,
+              _weeklyRange?.start.toIso8601String().split('T').first,
             ),
             endDate: drift.Value(
-              _weeklyRange?.end.toIso8601String().split("T").first,
+              _weeklyRange?.end.toIso8601String().split('T').first,
             ),
             endHour: drift.Value(endTime.hour),
             endMinute: drift.Value(endTime.minute),
@@ -383,10 +380,10 @@ class _ChunkManagerState extends State<ChunkManager> {
                 category: _category.name,
                 date: drift.Value(dateValue),
                 startDate: drift.Value(
-                  _weeklyRange?.start.toIso8601String().split("T").first,
+                  _weeklyRange?.start.toIso8601String().split('T').first,
                 ),
                 endDate: drift.Value(
-                  _weeklyRange?.end.toIso8601String().split("T").first,
+                  _weeklyRange?.end.toIso8601String().split('T').first,
                 ),
                 selectedDays: drift.Value(weekdayValue),
               ),
@@ -396,19 +393,19 @@ class _ChunkManagerState extends State<ChunkManager> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Chunk saved")));
+      ).showSnackBar(const SnackBar(content: Text('Chunk saved')));
       Navigator.of(context).pop(true);
     } catch (e, s) {
-      debugPrint("DB ERROR: $e");
+      debugPrint('DB ERROR: $e');
       debugPrintStack(stackTrace: s);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
-  // ── Build ───────────────────────────────────────────────────────────────────
+  // ── Build ─────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -424,7 +421,7 @@ class _ChunkManagerState extends State<ChunkManager> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                "Chunk Name",
+                'Chunk Name',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -437,7 +434,7 @@ class _ChunkManagerState extends State<ChunkManager> {
               ),
               const SizedBox(height: 24),
               const Text(
-                "Time Range",
+                'Time Range',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
@@ -445,7 +442,7 @@ class _ChunkManagerState extends State<ChunkManager> {
                 children: [
                   Expanded(
                     child: _TimeSelector(
-                      label: "Start",
+                      label: 'Start',
                       time: _formatTime(startTime),
                       onTap: () => _pickTime(
                         isStart: true,
@@ -456,7 +453,7 @@ class _ChunkManagerState extends State<ChunkManager> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: _TimeSelector(
-                      label: "End",
+                      label: 'End',
                       time: _formatTime(endTime),
                       onTap: () => _pickTime(
                         isStart: false,
@@ -466,9 +463,33 @@ class _ChunkManagerState extends State<ChunkManager> {
                   ),
                 ],
               ),
+
+              // ── Overnight indicator ──
+              if (_isOvernight)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.nightlight_round,
+                        size: 14,
+                        color: Colors.indigo.shade400,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Overnight chunk — ends the next day',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.indigo.shade400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               const SizedBox(height: 24),
               const Text(
-                "Repeat",
+                'Repeat',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
@@ -486,7 +507,6 @@ class _ChunkManagerState extends State<ChunkManager> {
                     selected: _frequency == frequency,
                     onSelected: (selected) {
                       if (selected) setState(() => _frequency = frequency);
-                      // Auto-open the picker on first selection
                       if (selected) {
                         switch (frequency) {
                           case model.ChunkFrequency.onceoff:
@@ -504,11 +524,10 @@ class _ChunkManagerState extends State<ChunkManager> {
                 }).toList(),
               ),
               const SizedBox(height: 8),
-              // Shows a tappable summary row for the chosen frequency
               _frequencyDetail(),
               const Spacer(),
               const Text(
-                "Category",
+                'Category',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               Wrap(
@@ -544,14 +563,14 @@ class _ChunkManagerState extends State<ChunkManager> {
                       onPressed: _submitChunk,
                       icon: const Icon(Icons.save),
                       label: Text(
-                        widget.isEdit ? "Update Chunk" : "Save Chunk",
+                        widget.isEdit ? 'Update Chunk' : 'Save Chunk',
                       ),
                     ),
                     if (widget.isEdit)
                       ElevatedButton.icon(
                         onPressed: _deleteChunk,
                         icon: const Icon(Icons.delete, color: Colors.red),
-                        label: const Text("Delete Chunk"),
+                        label: const Text('Delete Chunk'),
                       ),
                   ],
                 ),
@@ -564,7 +583,7 @@ class _ChunkManagerState extends State<ChunkManager> {
   }
 }
 
-// ── Detail row ───────────────────────────────────────────────────────────────
+// ── Detail row ────────────────────────────────────────────────────────────────
 
 class _DetailRow extends StatelessWidget {
   final IconData icon;
@@ -608,7 +627,7 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-// ── Time selector (unchanged) ─────────────────────────────────────────────────
+// ── Time selector ─────────────────────────────────────────────────────────────
 
 class _TimeSelector extends StatelessWidget {
   final String label;

@@ -2,10 +2,6 @@ import 'package:drift/drift.dart';
 import 'package:timely/models/chunk_activity.dart';
 import 'package:timely/utils/database/database.dart' as db;
 
-// TODO: Chunk addtition overwrites and deletes conflicting chunks - fix
-// TODO: Chunks cannot overlap sametime slots on different days - fix
-// TODO: Check if overlapping activities are completed
-
 class ChunkActivityService {
   final db.AppDb database;
 
@@ -23,8 +19,16 @@ class ChunkActivityService {
   Future<db.Chunk?> getChunkByName(String name) =>
       database.getChunkInfoByChunkName(name).getSingleOrNull();
 
-  /// Returns a conflicting chunk if the given hours overlap any existing chunk.
-  /// Pass [excludeId] when editing an existing chunk so it doesn't conflict with itself.
+  /// Returns true if the two time ranges overlap, overnight-aware.
+  /// Times are in total minutes since midnight.
+  bool _overlaps(int s1, int e1, int s2, int e2) {
+    // Normalize overnight spans by extending end past 1440
+    if (e1 <= s1) e1 += 1440;
+    if (e2 <= s2) e2 += 1440;
+
+    return s1 < e2 && s2 < e1;
+  }
+
   Future<List<db.Activity>> getOverlappingActivities(
     int chunkId,
     String startTime,
@@ -47,7 +51,7 @@ class ChunkActivityService {
       if (a.startTime == null || a.endTime == null) return false;
       final aStart = _timeToMinutes(a.startTime!);
       final aEnd = _timeToMinutes(a.endTime!);
-      return newStart < aEnd && newEnd > aStart;
+      return _overlaps(newStart, newEnd, aStart, aEnd);
     }).toList();
   }
 
@@ -77,9 +81,9 @@ class ChunkActivityService {
             .toSet();
         if (newDays.intersection(existingDays).isEmpty) continue;
       }
-      final cStart = (chunk.startHour ?? 0) * 60 + chunk.startMinute!;
-      final cEnd = (chunk.endHour ?? 0) * 60 + chunk.endMinute!;
-      if (newStart < cEnd && newEnd > cStart) return chunk;
+      final cStart = (chunk.startHour ?? 0) * 60 + (chunk.startMinute ?? 0);
+      final cEnd = (chunk.endHour ?? 0) * 60 + (chunk.endMinute ?? 0);
+      if (_overlaps(newStart, newEnd, cStart, cEnd)) return chunk;
     }
     return null;
   }
@@ -95,11 +99,20 @@ class ChunkActivityService {
 
     final actStart = _timeToMinutes(startTime);
     final actEnd = _timeToMinutes(endTime);
-    final chunkStart = (chunk.startHour ?? 0) * 60 + chunk.startMinute!;
-    final chunkEnd = (chunk.endHour ?? 0) * 60 + chunk.endMinute!;
+    final chunkStart = (chunk.startHour ?? 0) * 60 + (chunk.startMinute ?? 0);
+    var chunkEnd = (chunk.endHour ?? 0) * 60 + (chunk.endMinute ?? 0);
 
-    return actStart >= chunkStart && actEnd <= chunkEnd;
+    // Normalize overnight chunk
+    final isOvernightChunk = chunkEnd <= chunkStart;
+    if (isOvernightChunk) chunkEnd += 1440;
+
+    // Normalize overnight activity
+    var normActEnd = actEnd;
+    if (normActEnd <= actStart) normActEnd += 1440;
+
+    return actStart >= chunkStart && normActEnd <= chunkEnd;
   }
+
   /* =========================
    * ACTIVITIES
    * =========================
@@ -118,13 +131,6 @@ class ChunkActivityService {
     return dbActivities.map((a) {
       switch (a.frequency) {
         case 'onceoff':
-          return DailyActivity(
-            id: a.id,
-            description: a.description,
-            date: a.date != null ? DateTime.parse(a.date!) : null,
-            startTime: a.startTime,
-            endTime: a.endTime,
-          );
         case 'daily':
           return DailyActivity(
             id: a.id,
@@ -161,7 +167,6 @@ class ChunkActivityService {
    * =========================
   */
 
-  // TODO: delete activity, batch delete activity
   Future<void> addDailyActivity({
     required int chunkId,
     required String description,
@@ -394,6 +399,7 @@ class ChunkActivityService {
    *  COMPLETIONS
    * =========================
   */
+
   Future<void> setActivityCompleted(int activityId) {
     final today = DateTime.now().toLocal().toIso8601String().split('T').first;
     return database
@@ -416,7 +422,7 @@ class ChunkActivityService {
   }
 
   /* =========================
-   * DELETE ITEMS   
+   * DELETE
    * =========================
   */
 
@@ -427,8 +433,6 @@ class ChunkActivityService {
    * =========================
   */
 
-  /// Throws a descriptive [Exception] if times are invalid.
-  /// Call this before every insert/update.
   Future<void> _validateActivityTimes(
     int chunkId,
     String startTime,
@@ -436,8 +440,12 @@ class ChunkActivityService {
     int? excludeId,
     String? excludedDescription,
   }) async {
-    if (_timeToMinutes(startTime) >= _timeToMinutes(endTime)) {
-      throw Exception('Start time must be before end time.');
+    final s = _timeToMinutes(startTime);
+    final e = _timeToMinutes(endTime);
+
+    // Only reject if identical
+    if (s == e) {
+      throw Exception('Start time and end time cannot be the same.');
     }
 
     final fits = await activityFitsInChunk(chunkId, startTime, endTime);
@@ -473,7 +481,6 @@ class ChunkActivityService {
 
   String _iso(DateTime d) => d.toIso8601String().split('T').first;
 
-  /// Converts 'HH:MM' to total minutes since midnight.
   int _timeToMinutes(String time) {
     final parts = time.split(':');
     return int.parse(parts[0]) * 60 + int.parse(parts[1]);
