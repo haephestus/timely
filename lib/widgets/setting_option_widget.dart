@@ -184,3 +184,31 @@ class _DropDownSettingItemState extends State<DropDownSettingItem> {
     );
   }
 }
+
+class ClickableSettingItem extends StatefulWidget {
+  final String label;
+  final VoidCallback onTapped;
+  const ClickableSettingItem({
+    super.key,
+    required this.onTapped,
+    required this.label,
+  });
+
+  @override
+  State<ClickableSettingItem> createState() => _ClickableSettingItemState();
+}
+
+class _ClickableSettingItemState extends State<ClickableSettingItem> {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onTapped,
+      child: Padding(
+        padding: EdgeInsetsGeometry.all(16),
+        child: Row(
+          children: [Text(widget.label, style: TextStyle(fontSize: 16))],
+        ),
+      ),
+    );
+  }
+}

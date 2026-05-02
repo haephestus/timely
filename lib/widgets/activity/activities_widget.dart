@@ -5,7 +5,7 @@ import 'package:timely/models/chunk.dart';
 import 'package:timely/screens/activity_manager.dart';
 import 'package:timely/utils/database/database.dart' as database;
 import 'package:timely/utils/settings_provider.dart';
-import 'package:timely/widgets/activity/vertical_activity_card.dart';
+import 'package:timely/widgets/activity/horizontal_activity_cart.dart';
 
 // TODO: check for incomplete activities, carry them over to next day
 // OR show incomplete activity counter
@@ -17,6 +17,7 @@ class ActivityWidget extends StatelessWidget {
   final List<ChunkActivity> activities;
   final ChunkActivity? selectedActivity;
   final VoidCallback? onActivityChanged;
+  final VoidCallback? onCompleted;
   final ScrollController? scrollController;
 
   const ActivityWidget({
@@ -27,6 +28,7 @@ class ActivityWidget extends StatelessWidget {
     required this.activities,
     required this.scrollController,
     required this.onActivityChanged,
+    required this.onCompleted,
   });
 
   @override
@@ -139,7 +141,6 @@ class ActivityWidget extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Divider(color: s.accent.withValues(alpha: 0.2), height: 1),
-              const SizedBox(height: 8),
               Row(
                 children: [
                   // Activities label
@@ -192,11 +193,9 @@ class ActivityWidget extends StatelessWidget {
           ),
         ),
         // back layer — white activities card with rounded top corners
-        Positioned.fill(
-          top: 110,
+        Expanded(
           child: Container(
-            decoration: const BoxDecoration(color: Colors.transparent),
-            padding: const EdgeInsets.only(top: 72),
+            decoration: BoxDecoration(color: Colors.transparent),
             child: activities.isEmpty
                 ? Center(
                     child: Column(
@@ -218,12 +217,11 @@ class ActivityWidget extends StatelessWidget {
                       vertical: 12,
                     ),
                     itemCount: activities.length,
-                    itemBuilder: (context, index) => VerticalActivityCard(
+                    itemBuilder: (context, index) => HorizontalActivityCard(
                       db: db,
                       chunk: chunk!,
                       activity: activities[index],
-                      onDeleted: () => onActivityChanged?.call(),
-                      onActivityChanged: () => onActivityChanged?.call(),
+                      onCompleted: () => onCompleted?.call(),
                     ),
                   ),
           ),

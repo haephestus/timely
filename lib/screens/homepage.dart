@@ -442,11 +442,11 @@ class HomePageState extends State<HomePage> {
               onActivityChanged: _selectedChunk != null
                   ? () => loadChunkActivities(_selectedChunk!.chunkId!)
                   : null,
+              onCompleted: _selectedChunk != null
+                  ? () => loadChunkActivities(_selectedChunk!.chunkId!)
+                  : null,
             ),
           ),
-
-          // Bottom safe area (home indicator / gesture bar)
-          SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
     );

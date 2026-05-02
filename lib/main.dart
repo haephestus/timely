@@ -135,6 +135,8 @@ class _TimelyRootState extends State<TimelyRoot> {
         children: [
           _screens[_selectedScreen],
           ValueListenableBuilder<bool>(
+            // TODO: make navbar visible when chunk is changed
+            // TODO: make navbar visible when additional activity is deleted
             valueListenable: _navbarVisible,
             builder: (context, visible, child) {
               return AnimatedSlide(

@@ -1808,10 +1808,10 @@ abstract class _$AppDb extends GeneratedDatabase {
     );
   }
 
-  Future<int> deleteActivity(int var1) {
+  Future<int> deleteAllActivities() {
     return customUpdate(
-      'DELETE FROM activities WHERE chunkId = ?1',
-      variables: [Variable<int>(var1)],
+      'DELETE FROM activities',
+      variables: [],
       updates: {activities},
       updateKind: UpdateKind.delete,
     );

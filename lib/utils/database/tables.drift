@@ -143,5 +143,5 @@ AND (
 );
 -- DELETE
 deleteChunk: DELETE FROM chunks WHERE id = ?;
-deleteActivity: DELETE FROM activities WHERE chunkId = ?;
+deleteAllActivities: DELETE FROM activities;
 

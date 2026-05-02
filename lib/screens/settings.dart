@@ -1,8 +1,14 @@
+import 'dart:typed_data';
+import 'package:flutter_svg/flutter_svg.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:timely/utils/avatar_service.dart';
+import 'package:timely/utils/database/database.dart';
 import 'package:timely/utils/settings_provider.dart';
 import 'package:timely/widgets/setting_option_widget.dart';
+import 'package:timely/utils/database/services.dart';
 
 class Settings extends StatefulWidget {
   const Settings({super.key});
@@ -12,6 +18,8 @@ class Settings extends StatefulWidget {
 }
 
 class _SettingsState extends State<Settings> {
+  late final AppDb _database;
+  late final ChunkActivityService _service;
   List<StartingDayOfWeek> days = [
     StartingDayOfWeek.monday,
     StartingDayOfWeek.tuesday,
@@ -21,6 +29,13 @@ class _SettingsState extends State<Settings> {
     StartingDayOfWeek.saturday,
     StartingDayOfWeek.sunday,
   ];
+  @override
+  void initState() {
+    _database = AppDb();
+    _service = ChunkActivityService(_database);
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
@@ -45,11 +60,11 @@ class _SettingsState extends State<Settings> {
                   value: settings.darkMode,
                   onChanged: (v) => settings.setDarkMode(v),
                 ),
-                SwitchSettingItem(
+                /*SwitchSettingItem(
                   value: settings.saveLastPosition,
                   onChanged: (v) => settings.setSaveLastPosition(v),
                   label: "Save last position",
-                ),
+                ),*/
                 ChoiceSettingItem(
                   label: "Time format",
                   value: settings.is24HourFormat ? 1 : 0,
@@ -78,7 +93,7 @@ class _SettingsState extends State<Settings> {
             // Default start hour for new chunks
             // Default break duration before new chunk
             // Show inactive chunks on timeline - toggle on or off
-            SettingOptionWidget(
+            /* SettingOptionWidget(
               label: 'Chunks Settings',
               options: [
                 SwitchSettingItem(
@@ -87,27 +102,35 @@ class _SettingsState extends State<Settings> {
                   label: 'Show Inactive Chunks',
                 ),
               ],
-            ),
+            ),*/
             // Activity settings
             // Default Activity duration
             // Show completed activies - toggle on or off
             // Default break duration before new activity
             // Sort order - by time, by name, status or priority
-            SizedBox(height: 12),
-            SettingOptionWidget(label: 'Activity Settings', options: []),
+            //SizedBox(height: 12),
+            //SettingOptionWidget(label: 'Activity Settings', options: []),
             // Notifications
             // Notification settings,
             // Chunk start reminders - toggle on or off,
             //    lead time (5 mins before, 10 mins before or 15 mins before)
-            SizedBox(height: 12),
-            SettingOptionWidget(label: 'Notifications Settings', options: []),
+            //SizedBox(height: 12),
+            //SettingOptionWidget(label: 'Notifications Settings', options: []),
             // Data
             // Export to csv or json
             // clear all activies
             // clear all chunks
             // reset application
             SizedBox(height: 12),
-            SettingOptionWidget(label: 'Data & Privacy', options: []),
+            SettingOptionWidget(
+              label: 'Data & Privacy',
+              options: [
+                ClickableSettingItem(
+                  onTapped: _service.deleteAllActvities,
+                  label: "Clear All Activities",
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -123,51 +146,211 @@ class ProfileWidget extends StatefulWidget {
 }
 
 class _ProfileWidgetState extends State<ProfileWidget> {
+  Uint8List? _avatarBytes;
+  bool _isLoading = false;
+  int _totalChunks = 0;
+  int _totalActivities = 0;
+  int _completedActivities = 0;
+  Future<void> _loadAvatar() async {
+    final bytes = await AvatarService.getAvatar('your_username_here');
+    if (mounted) setState(() => _avatarBytes = bytes);
+  }
+
+  Future<void> _regenerateAvatar() async {
+    setState(() => _isLoading = true);
+    await AvatarService.clearCache();
+    final bytes = await AvatarService.getAvatar(
+      DateTime.now().millisecondsSinceEpoch.toString(),
+    );
+    if (mounted) {
+      setState(() {
+        _avatarBytes = bytes;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAvatar();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    final db = AppDb();
+    final chunks = await db.select(db.chunks).get();
+    final activities = await db.select(db.activities).get();
+    final completions = await db.select(db.completions).get();
+
+    if (mounted) {
+      setState(() {
+        _totalChunks = chunks.length;
+        _totalActivities = activities.length;
+        _completedActivities =
+            completions.length; // each row = one completion event
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.sizeOf(context);
-    return Column(
-      children: [
-        Container(
-          // Profile show user name
-          height: size.height * 0.20,
-          width: size.width * 0.95,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
+    return Container(
+      width: size.width * 0.95,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        // const Color(0xFF1C1C1E) -> Save this for Dark mode
+        color: Colors.white, // dark like the reference
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Top row: avatar + name + edit ──
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // First row user stuff
-              Padding(
-                padding: EdgeInsetsGeometry.only(left: 16, top: 16),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 96,
-                      width: 96,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadiusGeometry.circular(24),
-                        color: Colors.red,
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: _avatarBytes == null || _isLoading
+                        ? Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                            ),
+                            child: _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : null,
+                          )
+                        : SvgPicture.memory(
+                            _avatarBytes!,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                          ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: _isLoading ? null : _regenerateAvatar,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          Icons.refresh,
+                          size: 14,
+                          color: Colors.black,
+                        ),
                       ),
                     ),
-                    Column(
-                      children: [
-                        Text("Here be dragons", style: TextStyle(fontSize: 24)),
-                        TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            "Edit your profile",
-                            style: TextStyle(fontSize: 14),
-                          ),
-                        ),
-                      ],
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      // username goes here
+                      "Here be dragons",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      // other part of username goes here
+                      "Timely user",
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade400,
+                      ),
                     ),
                   ],
                 ),
               ),
+              IconButton(
+                icon: const Icon(Icons.person_outline, color: Colors.white),
+                onPressed: () {},
+              ),
             ],
           ),
+
+          const SizedBox(height: 16),
+          const Divider(color: Colors.white12),
+          const SizedBox(height: 12),
+
+          // ── Stat pills row ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _StatPill(
+                icon: Icons.grid_view_rounded,
+                value: '$_totalChunks',
+                label: 'Chunks',
+              ),
+              _StatPill(
+                icon: Icons.check_circle_outline,
+                value: '$_totalActivities',
+                label: 'Activities',
+              ),
+              _StatPill(
+                icon: Icons.done_all,
+                value: '$_completedActivities',
+                label: 'Completed',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+
+  const _StatPill({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.black, size: 18),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
         ),
       ],
     );

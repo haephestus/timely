@@ -34,7 +34,7 @@ class _ActivityManagerState extends State<ActivityManager> {
   late final AppDb _db;
 
   ChunkActivity? _activity;
-  Frequency _frequency = Frequency.daily;
+  Frequency _frequency = Frequency.onceoff;
 
   // Time fields
   TimeOfDay? _startTime;

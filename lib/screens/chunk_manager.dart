@@ -356,6 +356,12 @@ class _ChunkManagerState extends State<ChunkManager> {
             frequency: drift.Value(_frequency.name),
             startHour: drift.Value(startTime.hour),
             startMinute: drift.Value(startTime.minute),
+            startDate: drift.Value(
+              _weeklyRange?.start.toIso8601String().split("T").first,
+            ),
+            endDate: drift.Value(
+              _weeklyRange?.end.toIso8601String().split("T").first,
+            ),
             endHour: drift.Value(endTime.hour),
             endMinute: drift.Value(endTime.minute),
             category: drift.Value(_category.name),
@@ -376,6 +382,12 @@ class _ChunkManagerState extends State<ChunkManager> {
                 endMinute: drift.Value(endTime.minute),
                 category: _category.name,
                 date: drift.Value(dateValue),
+                startDate: drift.Value(
+                  _weeklyRange?.start.toIso8601String().split("T").first,
+                ),
+                endDate: drift.Value(
+                  _weeklyRange?.end.toIso8601String().split("T").first,
+                ),
                 selectedDays: drift.Value(weekdayValue),
               ),
             );

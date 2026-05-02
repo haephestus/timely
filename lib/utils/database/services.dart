@@ -395,14 +395,13 @@ class ChunkActivityService {
    * =========================
   */
   Future<void> setActivityCompleted(int activityId) {
+    final today = DateTime.now().toLocal().toIso8601String().split('T').first;
     return database
         .into(database.completions)
         .insertOnConflictUpdate(
-          db.CompletionsCompanion(
-            activityId: Value(activityId),
-            completedDate: Value(
-              DateTime.now().toIso8601String().split('T')[0],
-            ),
+          db.CompletionsCompanion.insert(
+            activityId: activityId,
+            completedDate: Value(today),
           ),
         );
   }
@@ -415,6 +414,13 @@ class ChunkActivityService {
         ))
         .go();
   }
+
+  /* =========================
+   * DELETE ITEMS   
+   * =========================
+  */
+
+  Future<void> deleteAllActvities() => database.deleteAllActivities();
 
   /* =========================
    * VALIDATION

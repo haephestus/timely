@@ -51,7 +51,7 @@ class _DateHeaderState extends State<DateHeader> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final muted = colorScheme.onSurface.withAlpha(45);
+    final muted = colorScheme.onSurface.withAlpha(175);
     final timePattern = widget.is24HourFormat ? 'HH:mm' : 'hh:mm a';
 
     return Padding(
