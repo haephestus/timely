@@ -87,7 +87,6 @@ flutter run
 ### 6.1 
 
 #### Installation:
-  - Build it yourself - see 6.0
   ```bash
   git clone https://github.com/haephestus/timely.git
   cd timely
