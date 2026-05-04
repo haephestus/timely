@@ -14,6 +14,9 @@ import 'package:flutter/services.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(statusBarColor: Colors.transparent),
+  );
   WidgetsFlutterBinding.ensureInitialized();
   // NOTE: line 19 prevents landscape
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -59,9 +62,35 @@ class Timely extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final lightTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.fromSeed(
+        surface: Colors.white,
+        seedColor: Colors.red, // your app's brand color
+        primary: Colors.grey.shade300,
+        secondary: Color(0xFF1C1C1E),
+        brightness: Brightness.light,
+      ),
+    );
+
+    final darkTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.fromSeed(
+        surface: Color(0xFF1C1C1E),
+        seedColor: Colors.red,
+        primary: Colors.grey.shade800,
+        secondary: Colors.white,
+        brightness: Brightness.dark,
+      ),
+    );
     return MaterialApp(
+      themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
+      theme: lightTheme,
+      darkTheme: darkTheme,
       debugShowCheckedModeBanner: false,
-      color: Colors.grey.shade300,
       home: TimelyRoot(),
     );
   }
@@ -86,12 +115,18 @@ class _TimelyRootState extends State<TimelyRoot> {
   @override
   void initState() {
     super.initState();
+    // In _TimelyRootState initState, replace the scroll listener with:
     _scrollController.addListener(() {
-      if (_scrollController.position.userScrollDirection ==
-          ScrollDirection.reverse) {
+      if (!_scrollController.hasClients) return;
+      final direction = _scrollController.position.userScrollDirection;
+      final atTop = _scrollController.position.pixels <= 0;
+      final notScrollable = _scrollController.position.maxScrollExtent == 0;
+
+      if (direction == ScrollDirection.reverse) {
         _navbarVisible.value = false;
-      } else if (_scrollController.position.userScrollDirection ==
-          ScrollDirection.forward) {
+      } else if (direction == ScrollDirection.forward ||
+          atTop ||
+          notScrollable) {
         _navbarVisible.value = true;
       }
     });
@@ -101,6 +136,7 @@ class _TimelyRootState extends State<TimelyRoot> {
         scrollController: _scrollController, // pass down
         onChunkSelected: (chunk) {
           setState(() => _selectedChunk = chunk);
+          _navbarVisible.value = true;
         },
       ),
       Settings(),

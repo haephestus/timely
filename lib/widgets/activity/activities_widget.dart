@@ -54,7 +54,7 @@ class ActivityWidget extends StatelessWidget {
 
     if (chunk == null) {
       return Container(
-        decoration: const BoxDecoration(color: Colors.white),
+        decoration: BoxDecoration(color: Colors.transparent),
         child: const Center(child: Text('No chunk selected.')),
       );
     }
@@ -63,10 +63,10 @@ class ActivityWidget extends StatelessWidget {
 
     return Column(
       children: [
-        // front layer — chunk header
+        // top layer — chunk header
+        // TODO: add darkmode chunk theme support
         Container(
           width: double.infinity,
-          decoration: BoxDecoration(color: Colors.transparent),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -80,9 +80,15 @@ class ActivityWidget extends StatelessWidget {
                     height: 40,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadiusGeometry.circular(12),
-                      color: s.accent.withValues(alpha: 0.25),
+                      color: settings.darkMode
+                          ? s.soft.withValues(alpha: 0.25)
+                          : s.accent.withValues(alpha: 0.25),
                     ),
-                    child: Icon(s.icon, color: s.bg, size: 20),
+                    child: Icon(
+                      s.icon,
+                      color: settings.darkMode ? s.soft : s.bg,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   //Chunk name
@@ -95,13 +101,16 @@ class ActivityWidget extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            color: s.bg,
+                            color: settings.darkMode ? s.soft : s.bg,
                             letterSpacing: -0.3,
                           ),
                         ),
                         Text(
                           s.label,
-                          style: TextStyle(fontSize: 12, color: s.accent),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: settings.darkMode ? s.soft : s.accent,
+                          ),
                         ),
                       ],
                     ),
@@ -123,7 +132,7 @@ class ActivityWidget extends StatelessWidget {
                           chunk!.frequency.name,
                           style: TextStyle(
                             fontSize: 12,
-                            color: s.bg,
+                            color: settings.darkMode ? s.soft : s.bg,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -133,7 +142,10 @@ class ActivityWidget extends StatelessWidget {
                         settings.is24HourFormat
                             ? '${chunk!.startTimeStr} – ${chunk!.endTimeStr}'
                             : '${_fmt12(chunk!.startTimeStr)} – ${_fmt12(chunk!.endTimeStr)}',
-                        style: TextStyle(fontSize: 12, color: s.accent),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: settings.darkMode ? s.soft : s.accent,
+                        ),
                       ),
                     ],
                   ),
@@ -160,7 +172,10 @@ class ActivityWidget extends StatelessWidget {
                           activities.length == 1
                               ? '${activities.length} activity'
                               : '${activities.length} activities',
-                          style: TextStyle(fontSize: 12, color: s.accent),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: settings.darkMode ? s.soft : s.accent,
+                          ),
                         ),
                       ],
                     ),
@@ -172,9 +187,9 @@ class ActivityWidget extends StatelessWidget {
                     height: 6,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: chunk!.isActive
-                          ? s.accent
-                          : s.accent.withValues(alpha: 0.4),
+                      color: chunk!.isActive && settings.darkMode
+                          ? s.soft
+                          : s.accent,
                     ),
                   ),
                   const SizedBox(width: 6),
@@ -182,9 +197,9 @@ class ActivityWidget extends StatelessWidget {
                     chunk!.isActive ? 'Active' : 'Inactive',
                     style: TextStyle(
                       fontSize: 12,
-                      color: chunk!.isActive
-                          ? s.accent
-                          : s.accent.withValues(alpha: 0.5),
+                      color: chunk!.isActive && settings.darkMode
+                          ? s.soft
+                          : s.accent,
                     ),
                   ),
                 ],
@@ -192,21 +207,28 @@ class ActivityWidget extends StatelessWidget {
             ],
           ),
         ),
-        // back layer — white activities card with rounded top corners
+        // bottom layer —activities
         Expanded(
           child: Container(
-            decoration: BoxDecoration(color: Colors.transparent),
             child: activities.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(s.icon, color: s.bg, size: 40),
+                        Icon(
+                          s.icon,
+                          color: settings.darkMode ? s.soft : s.bg,
+                          size: 40,
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           'No activities yet.',
-                          style: TextStyle(fontSize: 14, color: s.accent),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: settings.darkMode ? s.soft : s.accent,
+                          ),
                         ),
+                        SizedBox(height: 156),
                       ],
                     ),
                   )

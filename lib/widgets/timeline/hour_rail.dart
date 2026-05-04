@@ -16,6 +16,8 @@ class HourRail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Row(
       children: List.generate(24, (hour) {
         return Container(
@@ -23,7 +25,9 @@ class HourRail extends StatelessWidget {
           height: HorizontalTimeline.timelineHeight,
           padding: const EdgeInsets.only(top: 8, left: 6),
           decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey.shade400)),
+            border: Border(
+              right: BorderSide(color: cs.secondary.withValues(alpha: 0.3)),
+            ),
           ),
           child: Text(
             _formatHour(hour),

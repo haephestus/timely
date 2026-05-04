@@ -39,9 +39,11 @@ dependencies:
     sdk: flutter
   flutter_native_splash: ^2.4.7
   flutter_launcher_icons: ^0.14.4
+  flutter_svg: ^2.2.4
   intl: ^0.20.0
   provider: ^6.1.2
   path: ^1.9.1
+  package_info_plus: ^8.0.0
   path_provider: ^2.1.5
   shared_preferences: ^2.5.3
   timelines_plus: ^1.0.8
@@ -116,7 +118,7 @@ flutter_launcher_icons:
   image_path_ios: "assets/icon/icon.png"
 
 flutter_native_splash:
-  color: "#FFFFFF"
+  color: "#E8E8E8"
   image: "assets/icon/icon.png"
   android: true
   ios: true

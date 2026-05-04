@@ -16,8 +16,8 @@ class SettingOptionWidget extends StatefulWidget {
 class _SettingOptionWidgetState extends State<SettingOptionWidget> {
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     Size size = MediaQuery.sizeOf(context);
-    // Size size = MediaQuery.sizeOf(context);
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: Container(
@@ -27,8 +27,8 @@ class _SettingOptionWidgetState extends State<SettingOptionWidget> {
         clipBehavior: Clip.hardEdge,
         width: size.width * 0.95,
         child: ExpansionTile(
-          collapsedBackgroundColor: Colors.white,
-          backgroundColor: Colors.white,
+          collapsedBackgroundColor: cs.surface, // ← was Colors.white
+          backgroundColor: cs.surface, // ← was Colors.white
           title: Text(widget.label),
           children: widget.options,
         ),
@@ -55,7 +55,11 @@ class SwitchSettingItem extends StatefulWidget {
 class _SwitchSettingItemState extends State<SwitchSettingItem> {
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return SwitchListTile(
+      activeThumbColor: cs.secondary,
+      inactiveThumbColor: cs.secondary,
+      inactiveTrackColor: cs.primary,
       title: Text(widget.label),
       value: widget.value,
       onChanged: widget.onChanged,
@@ -82,6 +86,7 @@ class ChoiceSettingItem extends StatefulWidget {
 
 class _ChoiceSettingItemState extends State<ChoiceSettingItem> {
   late dynamic _selected;
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +95,7 @@ class _ChoiceSettingItemState extends State<ChoiceSettingItem> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: EdgeInsetsGeometry.only(left: 18, right: 20),
       child: Row(
@@ -101,8 +107,17 @@ class _ChoiceSettingItemState extends State<ChoiceSettingItem> {
               return ChoiceChip(
                 showCheckmark: false,
                 selectedColor: Colors.red,
-                disabledColor: Colors.grey.shade400,
-                label: Text(widget.choices[index].toString()),
+                disabledColor:
+                    cs.surfaceContainerHighest, // ← was Colors.grey.shade400
+                label: Text(
+                  widget.choices[index].toString(),
+                  style: TextStyle(
+                    color: _selected == index
+                        ? cs
+                              .surface // ← text on selected chip
+                        : cs.onSurface,
+                  ),
+                ),
                 selected: _selected == index,
                 onSelected: (bool selected) {
                   setState(() {
@@ -173,7 +188,6 @@ class _DropDownSettingItemState extends State<DropDownSettingItem> {
                 borderSide: BorderSide(color: Colors.transparent),
               ),
             ),
-            // TODO: work on menuStyle
             menuStyle: MenuStyle(
               alignment: AlignmentGeometry.xy(-0.80, 0.5),
               maximumSize: WidgetStatePropertyAll(Size(128, 128)),

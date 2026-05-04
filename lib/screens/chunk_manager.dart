@@ -415,167 +415,169 @@ class _ChunkManagerState extends State<ChunkManager> {
         title: Text(widget.isEdit ? 'Edit Chunk' : 'Create Chunk'),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Chunk Name',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  hintText: 'Name your chunk',
-                  border: OutlineInputBorder(),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Chunk Name',
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Time Range',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _TimeSelector(
-                      label: 'Start',
-                      time: _formatTime(startTime),
-                      onTap: () => _pickTime(
-                        isStart: true,
-                        timeFormat: settings.is24HourFormat,
-                      ),
-                    ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(
+                    hintText: 'Name your chunk',
+                    border: OutlineInputBorder(),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _TimeSelector(
-                      label: 'End',
-                      time: _formatTime(endTime),
-                      onTap: () => _pickTime(
-                        isStart: false,
-                        timeFormat: settings.is24HourFormat,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              // ── Overnight indicator ──
-              if (_isOvernight)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.nightlight_round,
-                        size: 14,
-                        color: Colors.indigo.shade400,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Overnight chunk — ends the next day',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.indigo.shade400,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Time Range',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _TimeSelector(
+                        label: 'Start',
+                        time: _formatTime(startTime),
+                        onTap: () => _pickTime(
+                          isStart: true,
+                          timeFormat: settings.is24HourFormat,
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _TimeSelector(
+                        label: 'End',
+                        time: _formatTime(endTime),
+                        onTap: () => _pickTime(
+                          isStart: false,
+                          timeFormat: settings.is24HourFormat,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // ── Overnight indicator ──
+                if (_isOvernight)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.nightlight_round,
+                          size: 14,
+                          color: Colors.indigo.shade400,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Overnight chunk — ends the next day',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.indigo.shade400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 24),
+                const Text(
+                  'Repeat',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  children: model.ChunkFrequency.values.map((frequency) {
+                    final label = switch (frequency) {
+                      model.ChunkFrequency.daily => 'Daily',
+                      model.ChunkFrequency.weekly => 'Weekly',
+                      model.ChunkFrequency.seasonal => 'Seasonal',
+                      model.ChunkFrequency.onceoff => 'Once-off',
+                    };
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: _frequency == frequency,
+                      onSelected: (selected) {
+                        if (selected) setState(() => _frequency = frequency);
+                        if (selected) {
+                          switch (frequency) {
+                            case model.ChunkFrequency.onceoff:
+                              _pickOnceoffDate();
+                            case model.ChunkFrequency.weekly:
+                              _pickWeekdays();
+                            case model.ChunkFrequency.seasonal:
+                              _pickSeasonalRange();
+                            case model.ChunkFrequency.daily:
+                              break;
+                          }
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 8),
+                _frequencyDetail(),
+                const SizedBox(height: 12),
+                const Text(
+                  'Category',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Wrap(
+                  spacing: 8,
+                  children: model.ChunkCategory.values.map((category) {
+                    final label = switch (category) {
+                      model.ChunkCategory.admin => 'Admin',
+                      model.ChunkCategory.exercise => 'Exercise',
+                      model.ChunkCategory.hobby => 'Hobby',
+                      model.ChunkCategory.learn => 'Learn',
+                      model.ChunkCategory.research => 'Research',
+                      model.ChunkCategory.rest => 'Rest',
+                      model.ChunkCategory.study => 'Study',
+                      model.ChunkCategory.sleep => 'Sleep',
+                      model.ChunkCategory.work => 'Work',
+                    };
+                    return ChoiceChip(
+                      label: Text(label),
+                      selected: _category == category,
+                      onSelected: (selected) {
+                        if (selected) setState(() => _category = category);
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.center,
+                  child: Wrap(
+                    spacing: 12,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _submitChunk,
+                        icon: const Icon(Icons.save),
+                        label: Text(
+                          widget.isEdit ? 'Update Chunk' : 'Save Chunk',
+                        ),
+                      ),
+                      if (widget.isEdit)
+                        ElevatedButton.icon(
+                          onPressed: _deleteChunk,
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          label: const Text('Delete Chunk'),
+                        ),
                     ],
                   ),
                 ),
-
-              const SizedBox(height: 24),
-              const Text(
-                'Repeat',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                children: model.ChunkFrequency.values.map((frequency) {
-                  final label = switch (frequency) {
-                    model.ChunkFrequency.daily => 'Daily',
-                    model.ChunkFrequency.weekly => 'Weekly',
-                    model.ChunkFrequency.seasonal => 'Seasonal',
-                    model.ChunkFrequency.onceoff => 'Once-off',
-                  };
-                  return ChoiceChip(
-                    label: Text(label),
-                    selected: _frequency == frequency,
-                    onSelected: (selected) {
-                      if (selected) setState(() => _frequency = frequency);
-                      if (selected) {
-                        switch (frequency) {
-                          case model.ChunkFrequency.onceoff:
-                            _pickOnceoffDate();
-                          case model.ChunkFrequency.weekly:
-                            _pickWeekdays();
-                          case model.ChunkFrequency.seasonal:
-                            _pickSeasonalRange();
-                          case model.ChunkFrequency.daily:
-                            break;
-                        }
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 8),
-              _frequencyDetail(),
-              const Spacer(),
-              const Text(
-                'Category',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              Wrap(
-                spacing: 8,
-                children: model.ChunkCategory.values.map((category) {
-                  final label = switch (category) {
-                    model.ChunkCategory.admin => 'Admin',
-                    model.ChunkCategory.exercise => 'Exercise',
-                    model.ChunkCategory.hobby => 'Hobby',
-                    model.ChunkCategory.learn => 'Learn',
-                    model.ChunkCategory.research => 'Research',
-                    model.ChunkCategory.rest => 'Rest',
-                    model.ChunkCategory.study => 'Study',
-                    model.ChunkCategory.sleep => 'Sleep',
-                    model.ChunkCategory.work => 'Work',
-                  };
-                  return ChoiceChip(
-                    label: Text(label),
-                    selected: _category == category,
-                    onSelected: (selected) {
-                      if (selected) setState(() => _category = category);
-                    },
-                  );
-                }).toList(),
-              ),
-              const Spacer(),
-              Align(
-                alignment: Alignment.center,
-                child: Wrap(
-                  spacing: 12,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _submitChunk,
-                      icon: const Icon(Icons.save),
-                      label: Text(
-                        widget.isEdit ? 'Update Chunk' : 'Save Chunk',
-                      ),
-                    ),
-                    if (widget.isEdit)
-                      ElevatedButton.icon(
-                        onPressed: _deleteChunk,
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        label: const Text('Delete Chunk'),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -613,7 +615,7 @@ class _DetailRow extends StatelessWidget {
           children: [
             Icon(icon, size: 18, color: color),
             const SizedBox(width: 8),
-            Expanded(
+            Flexible(
               child: Text(
                 text,
                 style: TextStyle(color: color, fontWeight: FontWeight.w500),

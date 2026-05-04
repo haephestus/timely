@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:timely/models/chunk.dart';
+import 'package:timely/utils/settings_provider.dart';
 import 'package:timely/widgets/timeline/horizontal_timeline.dart';
 
 class ChunkOverlays extends StatefulWidget {
@@ -95,7 +97,15 @@ class _ChunkOverlaysState extends State<ChunkOverlays> {
 
 class _ChunkTile extends StatelessWidget {
   final Chunk chunk;
-  final ({Color bg, Color accent, IconData icon, String label}) scheme;
+  final ({
+    Color bg,
+    Color accent,
+    Color soft,
+    Color strong,
+    String label,
+    IconData icon,
+  })
+  scheme;
   final bool isSelected;
   final bool isOvernight;
   final bool isContinuation;
@@ -111,22 +121,58 @@ class _ChunkTile extends StatelessWidget {
     required this.onLongPress,
     this.isContinuation = false,
   });
+  Color resolveOverlayColor({
+    required bool isDark,
+    required bool isSelected,
+    required ({
+      Color accent,
+      Color bg,
+      IconData icon,
+      String label,
+      Color soft,
+      Color strong,
+    })
+    scheme,
+  }) {
+    if (isDark) {
+      return isSelected
+          ? scheme.soft.withValues(alpha: 0.4)
+          : scheme.accent.withValues(alpha: 0.3);
+    } else {
+      return isSelected
+          ? scheme.accent.withValues(alpha: 0.35)
+          : scheme.bg.withValues(alpha: 0.3);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    SettingsProvider settings = context.watch<SettingsProvider>();
+    final isDark = settings.darkMode;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final overlayColor = resolveOverlayColor(
+      isDark: isDark,
+      isSelected: isSelected,
+      scheme: scheme,
+    );
+    final textColor = colorScheme.onSurface;
+    final iconColor = colorScheme.onSurfaceVariant;
+
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected
-              ? scheme.accent.withValues(alpha: 0.35)
-              : scheme.bg.withValues(alpha: 0.2),
+          // TODO: add darkmode chunk theme support
+          color: overlayColor,
+
           borderRadius: BorderRadius.circular(6),
+
           border: isOvernight
               ? Border.all(
-                  color: Colors.indigo.withValues(alpha: 0.4),
+                  color: colorScheme.primary.withValues(alpha: 0.4),
                   width: 1,
                 )
               : null,
@@ -134,28 +180,35 @@ class _ChunkTile extends StatelessWidget {
         child: Row(
           children: [
             if (isContinuation)
-              Icon(Icons.arrow_back, size: 12, color: Colors.indigo.shade300),
+              Padding(
+                padding: EdgeInsetsGeometry.only(right: 4),
+                child: Icon(
+                  Icons.arrow_back,
+                  size: 12,
+                  color: colorScheme.secondary,
+                ),
+              ),
+
             Expanded(
               child: Text(
                 chunk.name,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black54,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
               ),
             ),
+
             const Spacer(),
+
+            Icon(scheme.icon, size: 18, color: iconColor),
             if (isOvernight && !isContinuation)
               Padding(
                 padding: const EdgeInsets.only(right: 4),
                 child: Icon(
-                  Icons.nightlight_round,
+                  Icons.arrow_forward,
                   size: 12,
-                  color: Colors.indigo.shade300,
+                  color: colorScheme.secondary,
                 ),
               ),
-            Icon(scheme.icon, size: 18, color: Colors.black54),
           ],
         ),
       ),

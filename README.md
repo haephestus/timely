@@ -79,10 +79,24 @@ Flutter was chosen specifically for cross-platform reach. The goal is for Timely
 
 ```bash
 git clone https://github.com/haephestus/timely.git
-cd timely/timely
+cd timely
 flutter pub get
 flutter run
 ```
+
+### 6.1 
+
+#### Installation:
+  - Build it yourself - see 6.0
+  ```bash
+  git clone https://github.com/haephestus/timely.git
+  cd timely
+  flutter pub get
+  flutter build apk --release
+  ```
+
+  - ANDROID
+    [![Download APK](https://img.shields.io/badge/Download-APK-green)](https://github.com/haephestus/timely/releases/latest/download/timely.apk)
 
 ---
 

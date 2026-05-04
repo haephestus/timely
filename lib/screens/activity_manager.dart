@@ -79,17 +79,19 @@ class _ActivityManagerState extends State<ActivityManager> {
           startTime: e.startTime,
           endTime: e.endTime,
         ),
-        OnceOffActivity e => OnceOffActivity(
-          id: e.id,
-          date: e.date,
-          description: e.description,
-          startTime: e.startTime,
-          endTime: e.endTime,
-        ),
+        OnceOffActivity e => () {
+          _onceoffDate = e.date;
+          return OnceOffActivity(
+            id: e.id,
+            date: e.date,
+            description: e.description,
+            startTime: e.startTime,
+            endTime: e.endTime,
+          );
+        }(),
       };
     } else {
-      final now = DateTime.now();
-      _activity = DailyActivity(date: now, description: '');
+      _activity = DailyActivity(date: DateTime.now(), description: '');
     }
   }
 
@@ -100,6 +102,50 @@ class _ActivityManagerState extends State<ActivityManager> {
 
   String _formatTime(TimeOfDay t) =>
       '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
+  String _fmt(DateTime d) => '${d.day}/${d.month}/${d.year}';
+
+  // ── Frequency detail widget ───────────────────────────────────────────────
+
+  Widget _frequencyDetail() {
+    switch (_frequency) {
+      case Frequency.daily:
+        return const SizedBox.shrink();
+      case Frequency.onceoff:
+        return _DetailRow(
+          icon: Icons.calendar_today,
+          text: _onceoffDate != null
+              ? _fmt(_onceoffDate!)
+              : 'Tap to pick a date',
+          onTap: () => _onceoffDatePicker(Frequency.onceoff),
+          missing: _onceoffDate == null,
+        );
+      case Frequency.weekly:
+        final wa = _activity is WeeklyActivity
+            ? (_activity as WeeklyActivity).weekday
+            : <String>[];
+        return _DetailRow(
+          icon: Icons.repeat,
+          text: wa.isEmpty ? 'Tap to pick days' : wa.join(', '),
+          onTap: () => _weeklyDatePicker(Frequency.weekly),
+          missing: wa.isEmpty,
+        );
+      case Frequency.seasonal:
+        final sa = _activity is SeasonalActivity
+            ? _activity as SeasonalActivity
+            : null;
+        return _DetailRow(
+          icon: Icons.date_range,
+          text: sa != null
+              ? '${_fmt(sa.startDate)} → ${_fmt(sa.endDate)}'
+              : 'Tap to pick date range',
+          onTap: () => _seasonalDatePicker(Frequency.seasonal),
+          missing: sa == null,
+        );
+    }
+  }
+
+  // ── Time picker ───────────────────────────────────────────────────────────
 
   Future<void> _pickTime({
     required bool isStart,
@@ -121,7 +167,6 @@ class _ActivityManagerState extends State<ActivityManager> {
         maxMinute: 59,
         maxHour: (chunk?.endHour ?? 24).toDouble(),
         onChange: (Time newTime) {
-          // validation now uses total minutes
           if (chunk != null) {
             final pickedMinutes = newTime.hour * 60 + newTime.minute;
             if (pickedMinutes < chunk.startTotalMinutes ||
@@ -149,6 +194,8 @@ class _ActivityManagerState extends State<ActivityManager> {
     );
   }
 
+  // ── Frequency pickers ─────────────────────────────────────────────────────
+
   Future<void> _seasonalDatePicker(Frequency frequency) async {
     final seasonalDate = await showDateRangePicker(
       context: context,
@@ -171,7 +218,7 @@ class _ActivityManagerState extends State<ActivityManager> {
   Future<void> _weeklyDatePicker(Frequency frequency) async {
     List<String> selectedDays = [];
     if (_activity is WeeklyActivity) {
-      selectedDays = (_activity as WeeklyActivity).weekday;
+      selectedDays = List.from((_activity as WeeklyActivity).weekday);
     }
 
     final days = [
@@ -266,7 +313,6 @@ class _ActivityManagerState extends State<ActivityManager> {
       lastDate: cal.kLastDay,
     );
 
-    // Don't update if user cancelled
     if (date == null) return;
 
     setState(() {
@@ -280,10 +326,13 @@ class _ActivityManagerState extends State<ActivityManager> {
     });
   }
 
+  // ── Submit ────────────────────────────────────────────────────────────────
+
   Future<void> _submitActivity() async {
     final description = _descriptionController.text.trim();
 
     if (description.isEmpty) return;
+
     if (widget.chunk == null || widget.chunk!.chunkId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -292,7 +341,7 @@ class _ActivityManagerState extends State<ActivityManager> {
       );
       return;
     }
-    // Require both times to be set
+
     if (_startTime == null || _endTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please set both start and end times')),
@@ -300,7 +349,6 @@ class _ActivityManagerState extends State<ActivityManager> {
       return;
     }
 
-    // Validate start < end
     final startMinutes = _startTime!.hour * 60 + _startTime!.minute;
     final endMinutes = _endTime!.hour * 60 + _endTime!.minute;
     if (startMinutes >= endMinutes) {
@@ -310,8 +358,58 @@ class _ActivityManagerState extends State<ActivityManager> {
       return;
     }
 
+    // Guard: once-off requires a date
+    if (_frequency == Frequency.onceoff && _onceoffDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please pick a date for this once-off activity'),
+        ),
+      );
+      return;
+    }
+
+    // Guard: weekly requires at least one day selected
+    if (_frequency == Frequency.weekly &&
+        (_activity is! WeeklyActivity ||
+            (_activity as WeeklyActivity).weekday.isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please pick at least one day')),
+      );
+      return;
+    }
+
+    // Guard: seasonal requires a date range
+    if (_frequency == Frequency.seasonal && _activity is! SeasonalActivity) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please pick a date range')));
+      return;
+    }
+
     final startTimeStr = _formatTime(_startTime!);
     final endTimeStr = _formatTime(_endTime!);
+
+    // Sync _activity with current _frequency in case the user never
+    // re-tapped a chip (e.g. only changed description or times).
+    final existingId = _activity?.id;
+    switch (_frequency) {
+      case Frequency.daily:
+        if (_activity is! DailyActivity) {
+          _activity = DailyActivity(id: existingId, description: description);
+        }
+      case Frequency.onceoff:
+        if (_activity is! OnceOffActivity) {
+          _activity = OnceOffActivity(
+            id: existingId,
+            description: description,
+            date: _onceoffDate,
+          );
+        }
+      case Frequency.weekly:
+        break;
+      case Frequency.seasonal:
+        break;
+    }
 
     try {
       if (widget.isEdit && widget.chunk != null && widget.activity != null) {
@@ -338,7 +436,7 @@ class _ActivityManagerState extends State<ActivityManager> {
           DailyActivity a => _activityService.updateDailyActivity(
             id: a.id!,
             frequency: _frequency.name,
-            date: a.date?.toIso8601String().split('T').first ?? '',
+            date: DateTime.now().toIso8601String().split('T').first,
             description: description,
             chunkId: widget.chunk!.chunkId!,
             startTime: startTimeStr,
@@ -352,7 +450,7 @@ class _ActivityManagerState extends State<ActivityManager> {
                 : _activityService.updateOnceOffActivity(
                     id: a.id!,
                     frequency: _frequency.name,
-                    date: a.date?.toIso8601String().split('T').first ?? '',
+                    date: a.date!.toIso8601String().split('T').first,
                     chunkId: widget.chunk!.chunkId!,
                     description: description,
                     startTime: startTimeStr,
@@ -389,7 +487,7 @@ class _ActivityManagerState extends State<ActivityManager> {
                   )
                 : _activityService.addOnceOffActivity(
                     chunkId: widget.chunk!.chunkId!,
-                    date: a.date?.toIso8601String().split('T').first ?? '',
+                    date: a.date!.toIso8601String().split('T').first,
                     description: description,
                     startTime: startTimeStr,
                     endTime: endTimeStr,
@@ -417,6 +515,8 @@ class _ActivityManagerState extends State<ActivityManager> {
     super.dispose();
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
@@ -432,94 +532,99 @@ class _ActivityManagerState extends State<ActivityManager> {
         ),
       ),
       body: Form(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            spacing: 24.0,
-            children: [
-              TextFormField(
-                controller: _descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Description',
-                  hintText: widget.isEdit
-                      ? widget.activity!.description
-                      : 'Describe your activity',
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              spacing: 24.0,
+              children: [
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    hintText: widget.isEdit
+                        ? widget.activity!.description
+                        : 'Describe your activity',
+                  ),
                 ),
-              ),
 
-              // ── Time pickers ──────────────────────────────
-              Text(
-                'Activity time  ($chunkWindow)',
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: _TimeTile(
-                      label: 'Start',
-                      time: _startTime,
-                      onTap: () => _pickTime(
-                        isStart: true,
-                        timeFormat: settings.is24HourFormat,
+                // ── Time pickers ──────────────────────────────
+                Text(
+                  'Activity time  ($chunkWindow)',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _TimeTile(
+                        label: 'Start',
+                        time: _startTime,
+                        onTap: () => _pickTime(
+                          isStart: true,
+                          timeFormat: settings.is24HourFormat,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _TimeTile(
-                      label: 'End',
-                      time: _endTime,
-                      onTap: () => _pickTime(
-                        isStart: false,
-                        timeFormat: settings.is24HourFormat,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _TimeTile(
+                        label: 'End',
+                        time: _endTime,
+                        onTap: () => _pickTime(
+                          isStart: false,
+                          timeFormat: settings.is24HourFormat,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-
-              // ── Repeat frequency ───────────────────────────────
-              Text(
-                widget.isEdit ? 'Edit when to repeat' : 'When to repeat?',
-                style: Theme.of(context).textTheme.labelMedium,
-              ),
-              Wrap(
-                spacing: 8,
-                children: Frequency.values.map((frequency) {
-                  return ChoiceChip(
-                    label: Text(switch (frequency) {
-                      Frequency.weekly => 'Select day(s)',
-                      Frequency.daily => 'Everyday',
-                      Frequency.seasonal => 'Select date(s)',
-                      Frequency.onceoff => 'Once off',
-                    }),
-                    selected: _frequency == frequency,
-                    onSelected: (selected) {
-                      if (!selected) return;
-                      switch (frequency) {
-                        case Frequency.seasonal:
-                          _seasonalDatePicker(frequency);
-                        case Frequency.weekly:
-                          _weeklyDatePicker(frequency);
-                        case Frequency.daily:
-                          _dailyDatePicker(frequency);
-                        case Frequency.onceoff:
-                          _onceoffDatePicker(frequency);
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-
-              Align(
-                alignment: Alignment.center,
-                child: ElevatedButton.icon(
-                  onPressed: _submitActivity,
-                  icon: const Icon(Icons.save),
-                  label: Text(widget.isEdit ? 'Update' : 'Save'),
+                  ],
                 ),
-              ),
-            ],
+
+                // ── Repeat frequency ──────────────────────────
+                Text(
+                  widget.isEdit ? 'Edit when to repeat' : 'When to repeat?',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                Wrap(
+                  spacing: 8,
+                  children: Frequency.values.map((frequency) {
+                    return ChoiceChip(
+                      label: Text(switch (frequency) {
+                        Frequency.weekly => 'Select day(s)',
+                        Frequency.daily => 'Everyday',
+                        Frequency.seasonal => 'Select date(s)',
+                        Frequency.onceoff => 'Once off',
+                      }),
+                      selected: _frequency == frequency,
+                      onSelected: (selected) {
+                        if (!selected) return;
+                        switch (frequency) {
+                          case Frequency.seasonal:
+                            _seasonalDatePicker(frequency);
+                          case Frequency.weekly:
+                            _weeklyDatePicker(frequency);
+                          case Frequency.daily:
+                            _dailyDatePicker(frequency);
+                          case Frequency.onceoff:
+                            _onceoffDatePicker(frequency);
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+
+                // ── Frequency detail (selected date / days / range) ───────────
+                _frequencyDetail(),
+
+                Align(
+                  alignment: Alignment.center,
+                  child: ElevatedButton.icon(
+                    onPressed: _submitActivity,
+                    icon: const Icon(Icons.save),
+                    label: Text(widget.isEdit ? 'Update' : 'Save'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -527,7 +632,51 @@ class _ActivityManagerState extends State<ActivityManager> {
   }
 }
 
-// ── Time tile ────────────────────────────────────────────────────────────────
+// ── Detail row ────────────────────────────────────────────────────────────────
+
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final VoidCallback onTap;
+  final bool missing;
+
+  const _DetailRow({
+    required this.icon,
+    required this.text,
+    required this.onTap,
+    this.missing = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = missing
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).colorScheme.primary;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(color: color, fontWeight: FontWeight.w500),
+              ),
+            ),
+            Icon(Icons.edit, size: 16, color: color.withAlpha(150)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Time tile ─────────────────────────────────────────────────────────────────
 
 class _TimeTile extends StatelessWidget {
   final String label;

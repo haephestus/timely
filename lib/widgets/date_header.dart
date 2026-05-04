@@ -73,7 +73,7 @@ class _DateHeaderState extends State<DateHeader> {
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 18,
-                    color: Colors.black.withAlpha(80),
+                    color: colorScheme.onSurface.withAlpha(80),
                   ),
                 ),
                 Text(
@@ -131,8 +131,8 @@ class _DateHeaderState extends State<DateHeader> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(64),
                       ),
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
+                      backgroundColor: colorScheme.onSurface,
+                      foregroundColor: colorScheme.surface,
                     ),
                     child: Text("Now", style: TextStyle(fontSize: 12)),
                   ),

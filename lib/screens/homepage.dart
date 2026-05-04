@@ -162,7 +162,6 @@ class HomePageState extends State<HomePage> {
     };
   }
 
-  /// Maps a raw DB chunk row to a model.Chunk.
   model.Chunk _mapChunk(db.Chunk c) {
     final base = (
       chunkId: c.id,
@@ -240,7 +239,6 @@ class HomePageState extends State<HomePage> {
 
     final mappedChunks = dbChunks.map<model.Chunk>(_mapChunk).toList();
 
-    // ── Fetch overnight chunks that started yesterday and bleed into today ──
     final yesterday = _selectedDay.subtract(const Duration(days: 1));
     final yesterdayStr = yesterday.toIso8601String().split('T').first;
     final yesterdayDbChunks = await _service.getTodaysChunks(yesterdayStr);
@@ -251,11 +249,9 @@ class HomePageState extends State<HomePage> {
           final endH = c.endHour ?? 0;
           final startM = c.startMinute ?? 0;
           final endM = c.endMinute ?? 0;
-          // Overnight = end time is before or equal to start time
           return (endH * 60 + endM) <= (startH * 60 + startM);
         })
         .map<model.Chunk>(_mapChunk)
-        // Avoid duplicates in case the same chunk already appears today
         .where((c) => !mappedChunks.any((m) => m.chunkId == c.chunkId))
         .toList();
 
@@ -279,6 +275,14 @@ class HomePageState extends State<HomePage> {
       chunkId,
       _selectedDay,
     );
+    debugPrint(
+      'Loaded ${dbActivities.length} activities for chunk $chunkId on $_selectedDay',
+    );
+    for (final a in dbActivities) {
+      debugPrint(
+        '  → ${a.runtimeType} | ${a.description} | ${a.startTime}–${a.endTime}',
+      );
+    }
     if (!mounted) return;
     setState(() {
       _activities = dbActivities;
@@ -311,14 +315,15 @@ class HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     settings = context.watch<SettingsProvider>();
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Column(
         children: [
           Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: Colors.grey.shade300,
+              color: cs.primary, // ← was Colors.grey.shade300
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(18),
                 bottomRight: Radius.circular(18),
@@ -365,14 +370,16 @@ class HomePageState extends State<HomePage> {
                         weekendTextStyle: TextStyle(
                           color: Colors.red.withAlpha(200),
                         ),
-                        selectedTextStyle: const TextStyle(color: Colors.white),
+                        selectedTextStyle: TextStyle(color: cs.surface),
                         selectedDecoration: const BoxDecoration(
-                          color: Colors.red,
+                          color: Colors.red, // ← brand color, kept
                           shape: BoxShape.circle,
                         ),
-                        todayTextStyle: const TextStyle(color: Colors.white),
+                        todayTextStyle: TextStyle(color: cs.surface),
                         todayDecoration: BoxDecoration(
-                          color: Colors.black.withAlpha(70),
+                          color: cs.onSurface.withAlpha(
+                            70,
+                          ), // ← was Colors.black.withAlpha(70)
                           shape: BoxShape.circle,
                         ),
                         weekNumberTextStyle: const TextStyle(

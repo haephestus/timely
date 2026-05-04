@@ -139,61 +139,93 @@ ChunkCategory mapCategory(String? value) => switch (value) {
   _ => ChunkCategory.work,
 };
 
-({Color bg, Color accent, String label, IconData icon}) chunkScheme(
-  Chunk chunk,
-) {
+({
+  Color bg,
+  Color accent,
+  Color soft,
+  Color strong,
+  String label,
+  IconData icon,
+})
+chunkScheme(Chunk chunk) {
   return switch (chunk.category) {
     ChunkCategory.work => (
-      bg: Color(0xFF4A3728),
       accent: Color(0xFF8B6355),
+      bg: Color(0xFF4A3728),
+      soft: Color(0xFFC2A094),
+      strong: Color(0xFF6E4E42),
       label: 'Work',
       icon: Icons.work,
     ),
+
     ChunkCategory.exercise => (
-      bg: Color(0xFF2D4A3E),
       accent: Color(0xFF4E8B72),
+      bg: Color(0xFF2D4A3E),
+      soft: Color(0xFF9FC7B5),
+      strong: Color(0xFF3F6E5A),
       label: 'Exercise',
       icon: Icons.fitness_center,
     ),
+
     ChunkCategory.sleep => (
-      bg: Color(0xFF2B3A4A),
       accent: Color(0xFF4A6B8B),
+      bg: Color(0xFF2B3A4A),
+      soft: Color(0xFFA3B7CC),
+      strong: Color(0xFF3A556E),
       label: 'Sleep',
       icon: Icons.bed,
     ),
+
     ChunkCategory.study => (
-      bg: Color(0xFF3D3A28),
       accent: Color(0xFF7A7040),
+      bg: Color(0xFF3D3A28),
+      soft: Color(0xFFC9C39A),
+      strong: Color(0xFF615933),
       label: 'Study',
       icon: Icons.menu_book,
     ),
+
     ChunkCategory.learn => (
-      bg: Color(0xFF4A3B28),
       accent: Color(0xFF8B6B3D),
+      bg: Color(0xFF4A3B28),
+      soft: Color(0xFFD1B890),
+      strong: Color(0xFF6E552F),
       label: 'Learn',
       icon: Icons.lightbulb,
     ),
+
     ChunkCategory.research => (
-      bg: Color(0xFF2B3D4A),
       accent: Color(0xFF3D7A8B),
+      bg: Color(0xFF2B3D4A),
+      soft: Color(0xFF9EC3CC),
+      strong: Color(0xFF2F616E),
       label: 'Research',
       icon: Icons.science,
     ),
+
     ChunkCategory.hobby => (
-      bg: Color(0xFF3D2B4A),
       accent: Color(0xFF7A4E8B),
+      bg: Color(0xFF3D2B4A),
+      soft: Color(0xFFC3A3CC),
+      strong: Color(0xFF603D6E),
       label: 'Hobby',
       icon: Icons.palette,
     ),
+
     ChunkCategory.rest => (
-      bg: Color(0xFF3A4A2B),
       accent: Color(0xFF6B8B3D),
+      bg: Color(0xFF3A4A2B),
+      soft: Color(0xFFB7CC9E),
+      strong: Color(0xFF556E2F),
       label: 'Rest',
       icon: Icons.self_improvement,
     ),
+
     ChunkCategory.admin => (
-      bg: Color(0xFF4A2B35),
       accent: Color(0xFF8B3D52),
+      bg: Color(0xFF4A2B35),
+      soft: Color(0xFFCC9EAA),
+      strong: Color(0xFF6E2F41),
       label: 'Admin',
       icon: Icons.admin_panel_settings,
     ),

@@ -131,6 +131,13 @@ class ChunkActivityService {
     return dbActivities.map((a) {
       switch (a.frequency) {
         case 'onceoff':
+          return OnceOffActivity(
+            id: a.id,
+            description: a.description,
+            date: a.date != null ? DateTime.parse(a.date!) : null,
+            startTime: a.startTime,
+            endTime: a.endTime,
+          );
         case 'daily':
           return DailyActivity(
             id: a.id,
@@ -212,21 +219,17 @@ class ChunkActivityService {
       excludedDescription: original.description,
     );
 
-    await database.batch((b) {
-      b.update(
-        database.activities,
-        db.ActivitiesCompanion(
-          description: Value(description),
-          frequency: Value(frequency),
-          startTime: Value(startTime),
-          endTime: Value(endTime),
-        ),
-        where: (tbl) =>
-            tbl.chunkId.equals(chunkId) &
-            tbl.frequency.equals(frequency) &
-            tbl.description.equals(original.description),
-      );
-    });
+    // Same fix for updateDailyActivity
+    await (database.update(
+      database.activities,
+    )..where((a) => a.id.equals(id))).write(
+      db.ActivitiesCompanion(
+        description: Value(description),
+        frequency: Value(frequency),
+        startTime: Value(startTime),
+        endTime: Value(endTime),
+      ),
+    );
   }
 
   Future<void> addOnceOffActivity({
@@ -275,23 +278,17 @@ class ChunkActivityService {
       excludedDescription: original.description,
     );
 
-    await database.batch((b) {
-      b.update(
-        database.activities,
-        db.ActivitiesCompanion(
-          description: Value(description),
-          frequency: Value(frequency),
-          startTime: Value(startTime),
-          endTime: Value(endTime),
-          date: Value(date),
-        ),
-        where: (tbl) =>
-            tbl.date.equals(date) &
-            tbl.chunkId.equals(chunkId) &
-            tbl.frequency.equals(frequency) &
-            tbl.description.equals(original.description),
-      );
-    });
+    await (database.update(database.activities)
+          ..where((a) => a.id.equals(id))) // ← match by ID only
+        .write(
+          db.ActivitiesCompanion(
+            description: Value(description),
+            frequency: Value(frequency),
+            startTime: Value(startTime),
+            endTime: Value(endTime),
+            date: Value(date),
+          ),
+        );
   }
 
   Future<void> addWeeklyActivity({

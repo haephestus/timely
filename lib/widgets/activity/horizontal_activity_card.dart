@@ -29,10 +29,13 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
   double _dragOffset = 0.0;
   bool _isOpen = false;
 
-  final double _maxDrag = 85; // width of action area
+  final double _maxDrag = 85;
   final double _threshold = 60;
 
   late ChunkActivityService _service;
+
+  // Brand colors — intentional, kept as-is for both themes.
+  // bg is used at 0.4 alpha so it works on both light and dark backgrounds.
   ({Color bg, Color accent, IconData icon}) get _scheme {
     return switch (widget.activity) {
       OnceOffActivity() => (
@@ -75,11 +78,9 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
 
   Future<void> _delete() async {
     if (widget.activity.id == null) return;
-
     await (widget.db.delete(
       widget.db.activities,
     )..where((a) => a.id.equals(widget.activity.id!))).go();
-
     widget.onChanged?.call();
   }
 
@@ -93,7 +94,6 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
         ),
       ),
     );
-
     if (result == true) widget.onChanged?.call();
   }
 
@@ -113,6 +113,7 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
   @override
   Widget build(BuildContext context) {
     final s = _scheme;
+    final cs = Theme.of(context).colorScheme;
 
     final start = _toMinutes(widget.activity.startTime);
     var end = _toMinutes(widget.activity.endTime);
@@ -137,13 +138,14 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
     }
     progress = progress.clamp(0.0, 1.0);
     final double actionOpacity = (_dragOffset.abs() / _maxDrag).clamp(0.0, 1.0);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            /// TIME COLUMN — stays fixed, outside the gesture detector
+            /// TIME COLUMN
             Column(
               children: [
                 _TimeChip(time: widget.activity.startTime ?? '--:--'),
@@ -154,7 +156,7 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
 
             const SizedBox(width: 12),
 
-            /// SLIDING CARD — only this part moves
+            /// SLIDING CARD
             Expanded(
               child: GestureDetector(
                 onPanUpdate: (details) {
@@ -179,14 +181,13 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                 onTap: () {
                   if (_isOpen) _handleClose();
                 },
-                //
                 onDoubleTap: () {
                   _service.setActivityCompleted(widget.activity.id!);
                   widget.onCompleted?.call();
                 },
                 child: Stack(
                   children: [
-                    /// BACKGROUND ACTIONS — revealed as card slides
+                    /// BACKGROUND ACTIONS
                     Positioned.fill(
                       child: Container(
                         margin: const EdgeInsets.symmetric(vertical: 8),
@@ -209,9 +210,9 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                             IconButton(
                               icon: Icon(
                                 Icons.delete,
-                                color: Colors.red.withValues(
+                                color: cs.error.withValues(
                                   alpha: actionOpacity,
-                                ),
+                                ), // ← was Colors.red
                               ),
                               onPressed: _delete,
                             ),
@@ -221,12 +222,12 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                       ),
                     ),
 
-                    /// CARD — slides over the actions
+                    /// CARD
                     Transform.translate(
                       offset: Offset(-_dragOffset, 0),
                       child: Stack(
                         children: [
-                          /// progress line
+                          /// Progress line track
                           Positioned(
                             left: 8,
                             top: 12,
@@ -234,7 +235,9 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                             child: Container(
                               width: 4,
                               decoration: BoxDecoration(
-                                color: Colors.black26,
+                                color: cs.onSurface.withAlpha(
+                                  40,
+                                ), // ← was Colors.black26
                                 borderRadius: BorderRadius.circular(2),
                               ),
                               child: Align(
@@ -252,7 +255,7 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                             ),
                           ),
 
-                          /// card content
+                          /// Card content
                           Padding(
                             padding: const EdgeInsets.only(left: 8),
                             child: Container(
@@ -273,9 +276,11 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                                     right: 0,
                                     top: 0,
                                     child: PopupMenuButton<String>(
-                                      icon: const Icon(
+                                      icon: Icon(
                                         Icons.more_horiz,
                                         size: 20,
+                                        color: cs
+                                            .onSurface, // ← was default (black)
                                       ),
                                       onSelected: (v) {
                                         if (v == 'edit') _edit();
@@ -327,10 +332,12 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                                                       .isEmpty
                                                   ? 'description'
                                                   : widget.activity.description,
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontSize: 20,
                                                 fontWeight: FontWeight.w500,
-                                                color: Colors.black54,
+                                                color: cs.onSurface.withAlpha(
+                                                  180,
+                                                ), // ← was Colors.black54
                                               ),
                                             ),
                                             const SizedBox(height: 6),
@@ -340,8 +347,9 @@ class _HorizontalActivityCardState extends State<HorizontalActivityCard> {
                                                 _dateText(),
                                                 style: TextStyle(
                                                   fontSize: 12,
-                                                  color: Colors.black
-                                                      .withValues(alpha: 0.6),
+                                                  color: cs.onSurface.withAlpha(
+                                                    153,
+                                                  ), // ← was Colors.black.withValues(alpha:0.6)
                                                 ),
                                               ),
                                             ),
@@ -376,6 +384,7 @@ class _TimeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: 60,
       height: 28,
@@ -383,8 +392,8 @@ class _TimeChip extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Text(
         time,
-        style: const TextStyle(
-          color: Colors.black38,
+        style: TextStyle(
+          color: cs.onSurface.withAlpha(97), // ← was Colors.black38
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),

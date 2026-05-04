@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter_svg/flutter_svg.dart';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:timely/utils/avatar_service.dart';
 import 'package:timely/utils/database/database.dart';
@@ -29,6 +29,7 @@ class _SettingsState extends State<Settings> {
     StartingDayOfWeek.saturday,
     StartingDayOfWeek.sunday,
   ];
+
   @override
   void initState() {
     _database = AppDb();
@@ -39,18 +40,15 @@ class _SettingsState extends State<Settings> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final username = context.watch<SettingsProvider>().username;
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: Colors.grey.shade300,
+      backgroundColor: cs.primary, // ← was Colors.grey.shade300
       body: SafeArea(
         child: Column(
           children: [
-            // Use dropdown widgets
-
-            // Profile show user name
-            //  theme(light or dark), time format, Firstday of the week
-            //  date header settings / preferences
             Divider(color: Colors.transparent),
-            Center(child: ProfileWidget()),
+            Center(child: ProfileWidget(username: username)),
             Divider(color: Colors.transparent),
             SettingOptionWidget(
               label: "User Preferences",
@@ -60,11 +58,6 @@ class _SettingsState extends State<Settings> {
                   value: settings.darkMode,
                   onChanged: (v) => settings.setDarkMode(v),
                 ),
-                /*SwitchSettingItem(
-                  value: settings.saveLastPosition,
-                  onChanged: (v) => settings.setSaveLastPosition(v),
-                  label: "Save last position",
-                ),*/
                 ChoiceSettingItem(
                   label: "Time format",
                   value: settings.is24HourFormat ? 1 : 0,
@@ -86,41 +79,6 @@ class _SettingsState extends State<Settings> {
                 ),
               ],
             ),
-
-            SizedBox(height: 12),
-            // Chunks settings,
-            // Default chunk duration
-            // Default start hour for new chunks
-            // Default break duration before new chunk
-            // Show inactive chunks on timeline - toggle on or off
-            /* SettingOptionWidget(
-              label: 'Chunks Settings',
-              options: [
-                SwitchSettingItem(
-                  value: settings.showInactiveChunks,
-                  onChanged: (v) => settings.setShowInactiveChunks(v),
-                  label: 'Show Inactive Chunks',
-                ),
-              ],
-            ),*/
-            // Activity settings
-            // Default Activity duration
-            // Show completed activies - toggle on or off
-            // Default break duration before new activity
-            // Sort order - by time, by name, status or priority
-            //SizedBox(height: 12),
-            //SettingOptionWidget(label: 'Activity Settings', options: []),
-            // Notifications
-            // Notification settings,
-            // Chunk start reminders - toggle on or off,
-            //    lead time (5 mins before, 10 mins before or 15 mins before)
-            //SizedBox(height: 12),
-            //SettingOptionWidget(label: 'Notifications Settings', options: []),
-            // Data
-            // Export to csv or json
-            // clear all activies
-            // clear all chunks
-            // reset application
             SizedBox(height: 12),
             SettingOptionWidget(
               label: 'Data & Privacy',
@@ -139,7 +97,8 @@ class _SettingsState extends State<Settings> {
 }
 
 class ProfileWidget extends StatefulWidget {
-  const ProfileWidget({super.key});
+  final String? username;
+  const ProfileWidget({required this.username, super.key});
 
   @override
   State<ProfileWidget> createState() => _ProfileWidgetState();
@@ -151,8 +110,10 @@ class _ProfileWidgetState extends State<ProfileWidget> {
   int _totalChunks = 0;
   int _totalActivities = 0;
   int _completedActivities = 0;
+  final TextEditingController _usernameController = TextEditingController();
+
   Future<void> _loadAvatar() async {
-    final bytes = await AvatarService.getAvatar('your_username_here');
+    final bytes = await AvatarService.getAvatar(widget.username!);
     if (mounted) setState(() => _avatarBytes = bytes);
   }
 
@@ -173,8 +134,35 @@ class _ProfileWidgetState extends State<ProfileWidget> {
   @override
   void initState() {
     super.initState();
+    _usernameController.text = widget.username ?? '';
     _loadAvatar();
     _loadStats();
+    _usernameController.addListener(() {
+      final String text = _usernameController.text;
+      _usernameController.value = _usernameController.value.copyWith(
+        text: text,
+        selection: TextSelection(
+          baseOffset: text.length,
+          extentOffset: text.length,
+        ),
+        composing: TextRange.empty,
+      );
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.username != widget.username &&
+        _usernameController.text != widget.username) {
+      _usernameController.text = widget.username ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadStats() async {
@@ -187,27 +175,27 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       setState(() {
         _totalChunks = chunks.length;
         _totalActivities = activities.length;
-        _completedActivities =
-            completions.length; // each row = one completion event
+        _completedActivities = completions.length;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final cs = Theme.of(context).colorScheme;
     Size size = MediaQuery.sizeOf(context);
     return Container(
       width: size.width * 0.95,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        // const Color(0xFF1C1C1E) -> Save this for Dark mode
-        color: Colors.white, // dark like the reference
+        color: cs.surface, // ← was Colors.white
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Top row: avatar + name + edit ──
+          // ── Top row: avatar + name ──
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -220,7 +208,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                             width: 80,
                             height: 80,
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
+                              color: cs.primary, // ← was Colors.grey.shade300
                             ),
                             child: _isLoading
                                 ? const Center(
@@ -243,13 +231,14 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                     child: GestureDetector(
                       onTap: _isLoading ? null : _regenerateAvatar,
                       child: Container(
+                        clipBehavior: Clip.hardEdge,
                         width: 24,
                         height: 24,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.transparent,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.refresh,
                           size: 14,
                           color: Colors.black,
@@ -264,38 +253,68 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      // username goes here
-                      "Here be dragons",
+                    TextFormField(
+                      controller: _usernameController,
                       style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: cs.secondary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                      onChanged: (value) {
+                        if (value.length <= 16) {
+                          settings.setUsername(value);
+                        }
+                      },
+                      decoration: InputDecoration(
+                        labelText: "Enter username",
+                        labelStyle: TextStyle(
+                          color: cs.secondary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                        contentPadding: EdgeInsets.only(top: -16),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        floatingLabelBehavior: FloatingLabelBehavior.never,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      // other part of username goes here
-                      "Timely user",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
                   ],
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.person_outline, color: Colors.white),
+                icon: Icon(
+                  Icons.person_outline,
+                  color: cs.onSurface,
+                ), // ← was Colors.white
                 onPressed: () {},
               ),
             ],
           ),
 
-          const SizedBox(height: 16),
-          const Divider(color: Colors.white12),
-          const SizedBox(height: 12),
+          Padding(
+            padding: EdgeInsetsGeometry.only(right: 9),
+            child: Align(
+              alignment: Alignment.bottomRight,
+              child: FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.hasData ? 'v${snapshot.data!.version}' : '',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurface.withValues(alpha: 0.60),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
 
+          Divider(color: cs.outlineVariant), // ← was Colors.white12
           // ── Stat pills row ──
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -336,21 +355,25 @@ class _StatPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
-        Icon(icon, color: Colors.black, size: 18),
+        Icon(icon, color: cs.onSurface, size: 18), // ← was Colors.black
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: cs.onSurface, // ← was Colors.black
           ),
         ),
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          style: TextStyle(
+            fontSize: 11,
+            color: cs.onSurface.withAlpha(130), // ← was Colors.grey.shade500
+          ),
         ),
       ],
     );
